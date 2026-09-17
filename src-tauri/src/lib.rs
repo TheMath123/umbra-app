@@ -124,7 +124,44 @@ fn read_markdown_file(path: String) -> Result<String, String> {
 
 #[tauri::command]
 fn write_markdown_file(path: String, content: String) -> Result<(), String> {
+    ensure_parent_dir(&path)?;
     fs::write(&path, content).map_err(|e| format!("Falha ao salvar {path}: {e}"))
+}
+
+/// Cria o(s) diretório(s) pai de `path`, se ainda não existirem — usado
+/// pela exportação, que pode escrever em subpastas que espelham a árvore
+/// original e ainda não existem no destino escolhido.
+fn ensure_parent_dir(path: &str) -> Result<(), String> {
+    if let Some(parent) = Path::new(path).parent() {
+        if !parent.as_os_str().is_empty() {
+            fs::create_dir_all(parent).map_err(|e| format!("Falha ao criar pasta de destino: {e}"))?;
+        }
+    }
+    Ok(())
+}
+
+/// Grava um arquivo binário a partir de conteúdo em base64 — usado pela
+/// exportação para DOCX (o gerador roda no frontend, em JS, e manda os
+/// bytes prontos; base64 é só o transporte pela ponte IPC).
+#[tauri::command]
+fn write_binary_file(path: String, data_base64: String) -> Result<(), String> {
+    use base64::Engine;
+    ensure_parent_dir(&path)?;
+    let bytes = base64::engine::general_purpose::STANDARD
+        .decode(data_base64)
+        .map_err(|e| format!("Conteúdo inválido para {path}: {e}"))?;
+    fs::write(&path, bytes).map_err(|e| format!("Falha ao salvar {path}: {e}"))
+}
+
+/// Copia um arquivo para outro caminho, criando as pastas de destino que
+/// faltarem — usado pela exportação de pasta em formato Markdown, que
+/// espelha imagens e PDFs referenciados junto com os arquivos convertidos.
+#[tauri::command]
+fn copy_file(source: String, destination: String) -> Result<(), String> {
+    ensure_parent_dir(&destination)?;
+    fs::copy(&source, &destination)
+        .map(|_| ())
+        .map_err(|e| format!("Falha ao copiar {source}: {e}"))
 }
 
 #[tauri::command]
@@ -199,7 +236,9 @@ pub fn run() {
             create_markdown_file,
             rename_path,
             delete_path,
-            get_initial_dir
+            get_initial_dir,
+            write_binary_file,
+            copy_file
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

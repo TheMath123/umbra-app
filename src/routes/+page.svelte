@@ -15,13 +15,20 @@
 	import SettingsModal from '$lib/SettingsModal.svelte';
 	import ShortcutsModal from '$lib/ShortcutsModal.svelte';
 	import ThemeModal from '$lib/ThemeModal.svelte';
+	import ExportModal from '$lib/ExportModal.svelte';
 	import Icon from '$lib/Icon.svelte';
 	import { kindForPath, parentDir, baseName, joinPath } from '$lib/paths';
 	import { settings, persistSettings } from '$lib/settings.svelte';
 	import { matchesShortcut, recordingState } from '$lib/shortcuts.svelte';
 	import { findTheme, applyThemeOverride } from '$lib/themes.svelte';
 	import { navigateWithArrows } from '$lib/keyboardNav';
+	import { consumePrintPayload } from '$lib/exportRunner';
 	import type { DirNode, Tab } from '$lib/types';
+
+	// Janela "invisível" aberta só para imprimir o HTML exportado (ver
+	// ExportModal → PDF): sem árvore, sem abas, sem efeitos do app normal —
+	// só troca o documento inteiro pelo HTML recebido e chama window.print().
+	const isPrintMode = typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('print') === '1';
 
 	let rootDir = $state<string | null>(null);
 	let tree = $state<DirNode[]>([]);
@@ -33,6 +40,7 @@
 	let showSettings = $state(false);
 	let showShortcuts = $state(false);
 	let showThemes = $state(false);
+	let showExport = $state(false);
 	let overflowMenu = $state<{ x: number; y: number } | null>(null);
 
 	type PromptState =
@@ -404,6 +412,7 @@
 	});
 
 	$effect(() => {
+		if (isPrintMode) return;
 		(async () => {
 			const params = new URLSearchParams(window.location.search);
 			const queryRoot = params.get('root');
@@ -419,10 +428,25 @@
 			loading = false;
 		})();
 	});
+
+	// A troca de documento roda depois do mount (não durante a inicialização
+	// do componente), para o `document.write` substituir a página só depois
+	// que o Svelte já terminou de montar o pouco que essa janela renderiza.
+	$effect(() => {
+		if (!isPrintMode) return;
+		const html = consumePrintPayload();
+		if (!html) return;
+		document.open();
+		document.write(html);
+		document.close();
+		window.addEventListener('afterprint', () => window.close());
+		requestAnimationFrame(() => requestAnimationFrame(() => window.print()));
+	});
 </script>
 
-<svelte:window onkeydown={handleKeydown} onwheel={handleWheel} />
+<svelte:window onkeydown={isPrintMode ? undefined : handleKeydown} onwheel={isPrintMode ? undefined : handleWheel} />
 
+{#if !isPrintMode}
 <main>
 	<button
 		class="overflow-btn"
@@ -560,11 +584,16 @@
 	<ThemeModal onClose={() => (showThemes = false)} />
 {/if}
 
+{#if showExport}
+	<ExportModal {activeTab} {tree} {rootDir} onClose={() => (showExport = false)} />
+{/if}
+
 {#if overflowMenu}
 	<ContextMenu
 		x={overflowMenu.x}
 		y={overflowMenu.y}
 		items={[
+			{ label: 'Exportar…', icon: 'download', onClick: () => (showExport = true) },
 			{ label: 'Tema', icon: 'palette', onClick: () => (showThemes = true) },
 			{ label: 'Configurações', icon: 'settings', onClick: () => (showSettings = true) },
 			{ label: 'Personalizar atalhos', icon: 'keyboard', onClick: () => (showShortcuts = true) },
@@ -612,6 +641,7 @@
 			onCancel={() => (prompt = null)}
 		/>
 	{/if}
+{/if}
 {/if}
 
 <style>
