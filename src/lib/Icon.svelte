@@ -23,6 +23,10 @@
 	import uploadFile from '@material-design-icons/svg/outlined/upload_file.svg?raw';
 	import download from '@material-design-icons/svg/outlined/download.svg?raw';
 	import check from '@material-design-icons/svg/outlined/check.svg?raw';
+	import desktopWindows from '@material-design-icons/svg/outlined/desktop_windows.svg?raw';
+	import language from '@material-design-icons/svg/outlined/language.svg?raw';
+	import cropSquare from '@material-design-icons/svg/outlined/crop_square.svg?raw';
+	import filterNone from '@material-design-icons/svg/outlined/filter_none.svg?raw';
 
 	const icons = {
 		folder,
@@ -48,7 +52,11 @@
 		restore,
 		'upload-file': uploadFile,
 		download,
-		check
+		check,
+		'desktop-windows': desktopWindows,
+		language,
+		'crop-square': cropSquare,
+		'filter-none': filterNone
 	} as const;
 
 	export type IconName = keyof typeof icons;

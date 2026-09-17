@@ -1,10 +1,44 @@
 <script lang="ts">
+	import { invoke } from '@tauri-apps/api/core';
 	import Icon from './Icon.svelte';
 	import { navigateWithArrows } from './keyboardNav';
 	import { settings, persistSettings, resetSettings } from './settings.svelte';
 	import type { FontChoice, ContentWidth, LineHeightChoice, SidebarModePref } from './settings.svelte';
+	import { t, i18n, LOCALE_LIST, setLocale } from './i18n.svelte';
 
 	let { onClose, onOpenThemes }: { onClose: () => void; onOpenThemes: () => void } = $props();
+
+	interface IntegrationStatus {
+		supported: boolean;
+		contextMenu: boolean;
+		fileAssociation: boolean;
+	}
+
+	let integration = $state<IntegrationStatus | null>(null);
+	let integrationBusy = $state<'contextMenu' | 'fileAssociation' | null>(null);
+	let integrationError = $state<string | null>(null);
+
+	$effect(() => {
+		invoke<IntegrationStatus>('get_integration_status')
+			.then((s) => (integration = s))
+			.catch(() => (integration = { supported: false, contextMenu: false, fileAssociation: false }));
+	});
+
+	async function toggleIntegration(key: 'contextMenu' | 'fileAssociation') {
+		if (!integration || integrationBusy) return;
+		const next = !integration[key];
+		integrationBusy = key;
+		integrationError = null;
+		try {
+			const command = key === 'contextMenu' ? 'set_context_menu_integration' : 'set_file_association';
+			await invoke(command, { enabled: next });
+			integration = { ...integration, [key]: next };
+		} catch (e) {
+			integrationError = String(e);
+		} finally {
+			integrationBusy = null;
+		}
+	}
 
 	function onSegmentedKeydown(e: KeyboardEvent) {
 		navigateWithArrows(e, e.currentTarget as HTMLElement, 'button', 'horizontal');
@@ -24,29 +58,29 @@
 		onOpenThemes();
 	}
 
-	const fontOptions: { value: FontChoice; label: string }[] = [
-		{ value: 'system', label: 'Padrão' },
-		{ value: 'serif', label: 'Serifada' },
-		{ value: 'mono', label: 'Monoespaçada' }
-	];
+	let fontOptions = $derived<{ value: FontChoice; label: string }[]>([
+		{ value: 'system', label: t('settings.fontSystem') },
+		{ value: 'serif', label: t('settings.fontSerif') },
+		{ value: 'mono', label: t('settings.fontMono') }
+	]);
 
-	const widthOptions: { value: ContentWidth; label: string }[] = [
-		{ value: 'narrow', label: 'Estreita' },
-		{ value: 'normal', label: 'Normal' },
-		{ value: 'wide', label: 'Larga' },
-		{ value: 'full', label: 'Tela cheia' }
-	];
+	let widthOptions = $derived<{ value: ContentWidth; label: string }[]>([
+		{ value: 'narrow', label: t('settings.widthNarrow') },
+		{ value: 'normal', label: t('settings.widthNormal') },
+		{ value: 'wide', label: t('settings.widthWide') },
+		{ value: 'full', label: t('settings.widthFull') }
+	]);
 
-	const lineHeightOptions: { value: LineHeightChoice; label: string }[] = [
-		{ value: 'compact', label: 'Compacto' },
-		{ value: 'normal', label: 'Normal' },
-		{ value: 'relaxed', label: 'Relaxado' }
-	];
+	let lineHeightOptions = $derived<{ value: LineHeightChoice; label: string }[]>([
+		{ value: 'compact', label: t('settings.lineHeightCompact') },
+		{ value: 'normal', label: t('settings.lineHeightNormal') },
+		{ value: 'relaxed', label: t('settings.lineHeightRelaxed') }
+	]);
 
-	const sidebarOptions: { value: SidebarModePref; label: string }[] = [
-		{ value: 'fixed', label: 'Sempre fixa' },
-		{ value: 'auto', label: 'Ocultar automaticamente' }
-	];
+	let sidebarOptions = $derived<{ value: SidebarModePref; label: string }[]>([
+		{ value: 'fixed', label: t('settings.sidebarFixed') },
+		{ value: 'auto', label: t('settings.sidebarAuto') }
+	]);
 </script>
 
 <svelte:window onkeydown={onKeydown} />
@@ -57,28 +91,42 @@
 		role="dialog"
 		tabindex="-1"
 		aria-modal="true"
-		aria-label="Configurações"
+		aria-label={t('settings.title')}
 		onclick={(e) => e.stopPropagation()}
 		onkeydown={(e) => e.stopPropagation()}
 	>
 		<div class="header">
-			<h2><Icon name="settings" size={18} /> Configurações</h2>
-			<button class="close" onclick={onClose} title="Fechar (Esc)">
+			<h2><Icon name="settings" size={18} /> {t('settings.title')}</h2>
+			<button class="close" onclick={onClose} title={t('settings.close')}>
 				<Icon name="close" size={16} />
 			</button>
 		</div>
 
 		<div class="body">
 			<section>
-				<h3><Icon name="palette" size={15} /> Aparência</h3>
+				<h3><Icon name="language" size={15} /> {t('settings.language')}</h3>
+				<div class="row">
+					<span class="row-label">{t('settings.language')}</span>
+					<div class="segmented" role="toolbar" tabindex="-1" onkeydown={onSegmentedKeydown}>
+						{#each LOCALE_LIST as loc (loc.id)}
+							<button class:active={i18n.locale === loc.id} onclick={() => setLocale(loc.id)}>
+								{loc.name}
+							</button>
+						{/each}
+					</div>
+				</div>
+			</section>
+
+			<section>
+				<h3><Icon name="palette" size={15} /> {t('settings.appearance')}</h3>
 
 				<div class="row">
-					<span class="row-label">Tema</span>
-					<button class="theme-link" onclick={openThemes}>Escolher tema…</button>
+					<span class="row-label">{t('settings.theme')}</span>
+					<button class="theme-link" onclick={openThemes}>{t('settings.chooseTheme')}</button>
 				</div>
 
 				<div class="row">
-					<span class="row-label"><Icon name="text-format" size={14} /> Fonte do texto</span>
+					<span class="row-label"><Icon name="text-format" size={14} /> {t('settings.fontLabel')}</span>
 					<div class="segmented" role="toolbar" tabindex="-1" onkeydown={onSegmentedKeydown}>
 						{#each fontOptions as opt (opt.value)}
 							<button
@@ -92,7 +140,7 @@
 				</div>
 
 				<div class="row">
-					<span class="row-label"><Icon name="format-size" size={14} /> Tamanho da fonte</span>
+					<span class="row-label"><Icon name="format-size" size={14} /> {t('settings.fontSize')}</span>
 					<div class="slider-row">
 						<input
 							type="range"
@@ -107,7 +155,7 @@
 				</div>
 
 				<div class="row">
-					<span class="row-label">Largura do conteúdo</span>
+					<span class="row-label">{t('settings.contentWidth')}</span>
 					<div class="segmented" role="toolbar" tabindex="-1" onkeydown={onSegmentedKeydown}>
 						{#each widthOptions as opt (opt.value)}
 							<button
@@ -121,7 +169,7 @@
 				</div>
 
 				<div class="row">
-					<span class="row-label">Espaçamento entre linhas</span>
+					<span class="row-label">{t('settings.lineHeight')}</span>
 					<div class="segmented" role="toolbar" tabindex="-1" onkeydown={onSegmentedKeydown}>
 						{#each lineHeightOptions as opt (opt.value)}
 							<button
@@ -136,9 +184,9 @@
 			</section>
 
 			<section>
-				<h3>Barra lateral</h3>
+				<h3>{t('settings.sidebar')}</h3>
 				<div class="row">
-					<span class="row-label">Comportamento padrão</span>
+					<span class="row-label">{t('settings.sidebarBehavior')}</span>
 					<div class="segmented" role="toolbar" tabindex="-1" onkeydown={onSegmentedKeydown}>
 						{#each sidebarOptions as opt (opt.value)}
 							<button
@@ -151,10 +199,50 @@
 					</div>
 				</div>
 			</section>
+
+			{#if integration?.supported}
+				<section>
+					<h3><Icon name="desktop-windows" size={15} /> {t('settings.windowsIntegration')}</h3>
+
+					{#if integrationError}
+						<p class="integration-error">{integrationError}</p>
+					{/if}
+
+					<div class="row stacked">
+						<span class="row-label">
+							{t('settings.contextMenuLabel')}
+							<span class="row-desc">{t('settings.contextMenuDesc')}</span>
+						</span>
+						<button
+							class="toggle"
+							class:active={integration.contextMenu}
+							disabled={integrationBusy === 'contextMenu'}
+							onclick={() => toggleIntegration('contextMenu')}
+						>
+							{t(integration.contextMenu ? 'settings.activated' : 'settings.activate')}
+						</button>
+					</div>
+
+					<div class="row stacked">
+						<span class="row-label">
+							{t('settings.fileAssocLabel')}
+							<span class="row-desc">{t('settings.fileAssocDesc')}</span>
+						</span>
+						<button
+							class="toggle"
+							class:active={integration.fileAssociation}
+							disabled={integrationBusy === 'fileAssociation'}
+							onclick={() => toggleIntegration('fileAssociation')}
+						>
+							{t(integration.fileAssociation ? 'settings.activated' : 'settings.activate')}
+						</button>
+					</div>
+				</section>
+			{/if}
 		</div>
 
 		<div class="footer">
-			<button class="reset" onclick={resetSettings}>Restaurar padrões</button>
+			<button class="reset" onclick={resetSettings}>{t('settings.resetDefaults')}</button>
 		</div>
 	</div>
 </div>
@@ -256,6 +344,59 @@
 		gap: 6px;
 		font-size: 13px;
 		color: var(--text);
+	}
+
+	.row.stacked {
+		align-items: flex-start;
+	}
+
+	.row.stacked .row-label {
+		flex-direction: column;
+		align-items: flex-start;
+		gap: 3px;
+		flex: 1;
+		min-width: 0;
+	}
+
+	.row-desc {
+		font-size: 11px;
+		font-weight: 400;
+		color: var(--text-muted);
+		line-height: 1.4;
+	}
+
+	.toggle {
+		flex-shrink: 0;
+		border: 1px solid var(--border);
+		background: var(--surface);
+		color: var(--text-muted);
+		border-radius: 4px;
+		padding: 6px 12px;
+		font-size: 12px;
+		cursor: pointer;
+	}
+
+	.toggle:hover:not(:disabled) {
+		background: var(--hover);
+	}
+
+	.toggle.active {
+		border-color: var(--accent);
+		color: var(--accent);
+	}
+
+	.toggle:disabled {
+		opacity: 0.6;
+		cursor: default;
+	}
+
+	.integration-error {
+		background: color-mix(in srgb, var(--danger) 15%, transparent);
+		color: var(--danger);
+		border-radius: 4px;
+		padding: 8px 10px;
+		font-size: 12px;
+		margin: 0 0 10px;
 	}
 
 	.segmented {

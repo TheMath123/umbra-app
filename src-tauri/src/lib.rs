@@ -3,6 +3,9 @@ use std::fs;
 use std::path::Path;
 use std::sync::Mutex;
 
+#[cfg(target_os = "windows")]
+mod windows_integration;
+
 /// Diretórios que nunca fazem sentido varrer num leitor de markdown.
 const IGNORED_DIRS: &[&str] = &["node_modules", "target", "dist", "build", ".svelte-kit"];
 
@@ -43,9 +46,15 @@ struct DirNode {
     children: Option<Vec<DirNode>>,
 }
 
-/// Guarda o diretório passado como argumento de linha de comando
-/// (usado pela entrada do menu de contexto do Explorer).
+/// Guarda o diretório passado como argumento de linha de comando (usado
+/// pela entrada do menu de contexto do Explorer e pela associação de
+/// arquivo — nesse caso o diretório é o pai do arquivo aberto).
 struct InitialDir(Mutex<Option<String>>);
+
+/// Só populado quando o argumento era um arquivo (não uma pasta) — é o
+/// caso de abrir um `.md` associado pelo Explorer, em que além de montar
+/// a árvore da pasta o app deve abrir aquele arquivo específico numa aba.
+struct InitialFile(Mutex<Option<String>>);
 
 /// Monta recursivamente a árvore de pastas/arquivos suportados (markdown,
 /// imagens, PDF) a partir de `dir`. Pastas ocultas e as listadas em
@@ -205,29 +214,90 @@ fn get_initial_dir(state: tauri::State<InitialDir>) -> Option<String> {
     state.0.lock().unwrap().clone()
 }
 
-/// Extrai o diretório inicial dos argumentos de linha de comando.
-/// Aceita tanto um caminho de pasta quanto o de um arquivo dentro dela
-/// (nesse caso usa o diretório pai).
-fn initial_dir_from_args() -> Option<String> {
-    std::env::args().skip(1).find_map(|arg| {
+#[tauri::command]
+fn get_initial_file(state: tauri::State<InitialFile>) -> Option<String> {
+    state.0.lock().unwrap().clone()
+}
+
+/// Estado da integração com o Explorer do Windows — só existe de verdade
+/// no Windows; nas outras plataformas `supported` vem `false` e a
+/// interface esconde a seção inteira.
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+struct IntegrationStatus {
+    supported: bool,
+    context_menu: bool,
+    file_association: bool,
+}
+
+#[tauri::command]
+fn get_integration_status() -> IntegrationStatus {
+    #[cfg(target_os = "windows")]
+    {
+        IntegrationStatus {
+            supported: true,
+            context_menu: windows_integration::context_menu_enabled(),
+            file_association: windows_integration::file_association_enabled(),
+        }
+    }
+    #[cfg(not(target_os = "windows"))]
+    {
+        IntegrationStatus { supported: false, context_menu: false, file_association: false }
+    }
+}
+
+#[tauri::command]
+fn set_context_menu_integration(enabled: bool) -> Result<(), String> {
+    #[cfg(target_os = "windows")]
+    {
+        windows_integration::set_context_menu(enabled)
+    }
+    #[cfg(not(target_os = "windows"))]
+    {
+        let _ = enabled;
+        Err("Disponível apenas no Windows.".into())
+    }
+}
+
+#[tauri::command]
+fn set_file_association(enabled: bool) -> Result<(), String> {
+    #[cfg(target_os = "windows")]
+    {
+        windows_integration::set_file_association(enabled)
+    }
+    #[cfg(not(target_os = "windows"))]
+    {
+        let _ = enabled;
+        Err("Disponível apenas no Windows.".into())
+    }
+}
+
+/// Extrai o diretório (e, se for o caso, o arquivo) iniciais dos
+/// argumentos de linha de comando — usado tanto pela entrada de pasta do
+/// menu de contexto quanto pela associação de arquivo `.md` (que abre o
+/// app com o caminho do arquivo clicado, não de uma pasta).
+fn initial_paths_from_args() -> (Option<String>, Option<String>) {
+    for arg in std::env::args().skip(1) {
         let p = Path::new(&arg);
         if p.is_dir() {
-            Some(p.to_string_lossy().to_string())
+            return (Some(p.to_string_lossy().to_string()), None);
         } else if p.is_file() {
-            p.parent().map(|parent| parent.to_string_lossy().to_string())
-        } else {
-            None
+            let dir = p.parent().map(|parent| parent.to_string_lossy().to_string());
+            return (dir, Some(p.to_string_lossy().to_string()));
         }
-    })
+    }
+    (None, None)
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
+    let (initial_dir, initial_file) = initial_paths_from_args();
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_clipboard_manager::init())
-        .manage(InitialDir(Mutex::new(initial_dir_from_args())))
+        .manage(InitialDir(Mutex::new(initial_dir)))
+        .manage(InitialFile(Mutex::new(initial_file)))
         .invoke_handler(tauri::generate_handler![
             list_workspace_tree,
             read_markdown_file,
@@ -237,8 +307,12 @@ pub fn run() {
             rename_path,
             delete_path,
             get_initial_dir,
+            get_initial_file,
             write_binary_file,
-            copy_file
+            copy_file,
+            get_integration_status,
+            set_context_menu_integration,
+            set_file_association
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
