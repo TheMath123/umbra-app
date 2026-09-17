@@ -1,11 +1,12 @@
 <script lang="ts">
 	import { untrack } from 'svelte';
+	import { t } from './i18n.svelte';
 
 	let {
 		title,
 		label,
 		initialValue,
-		confirmLabel = 'Confirmar',
+		confirmLabel = t('prompt.confirm'),
 		onConfirm,
 		onCancel
 	}: {
@@ -65,7 +66,7 @@
 			<input bind:value bind:this={inputEl} onkeydown={onKeydown} />
 		</label>
 		<div class="actions">
-			<button class="secondary" onclick={onCancel}>Cancelar</button>
+			<button class="secondary" onclick={onCancel}>{t('prompt.cancel')}</button>
 			<button class="primary" onclick={submit}>{confirmLabel}</button>
 		</div>
 	</div>

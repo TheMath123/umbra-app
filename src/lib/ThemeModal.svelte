@@ -15,6 +15,7 @@
 		ThemeValidationError,
 		type ThemeDef
 	} from './themes.svelte';
+	import { t } from './i18n.svelte';
 
 	let { onClose }: { onClose: () => void } = $props();
 
@@ -46,7 +47,7 @@
 			copied = true;
 			setTimeout(() => (copied = false), 1500);
 		} catch {
-			error = 'Não foi possível copiar — copie manualmente pelo THEMES.md.';
+			error = t('themes.copyFailed');
 		}
 	}
 
@@ -58,7 +59,7 @@
 
 	async function importTheme() {
 		error = null;
-		const path = await open({ filters: [{ name: 'Tema do MD Reader', extensions: ['json'] }] });
+		const path = await open({ filters: [{ name: t('themes.dialogFilterName'), extensions: ['json'] }] });
 		if (typeof path !== 'string') return;
 		try {
 			const raw = await invoke<string>('read_markdown_file', { path });
@@ -66,7 +67,7 @@
 			addCustomTheme(theme);
 			selectTheme(theme.id);
 		} catch (e) {
-			error = e instanceof ThemeValidationError ? e.message : String(e);
+			error = e instanceof ThemeValidationError ? t(e.key, e.params) : String(e);
 		}
 	}
 
@@ -74,7 +75,7 @@
 		e.stopPropagation();
 		const path = await save({
 			defaultPath: `${theme.name.replace(/[^a-z0-9]+/gi, '-').toLowerCase()}.json`,
-			filters: [{ name: 'Tema do MD Reader', extensions: ['json'] }]
+			filters: [{ name: t('themes.dialogFilterName'), extensions: ['json'] }]
 		});
 		if (!path) return;
 		try {
@@ -115,13 +116,13 @@
 		role="dialog"
 		tabindex="-1"
 		aria-modal="true"
-		aria-label="Temas"
+		aria-label={t('themes.title')}
 		onclick={(e) => e.stopPropagation()}
 		onkeydown={() => {}}
 	>
 		<div class="header">
-			<h2><Icon name="palette" size={18} /> Temas</h2>
-			<button class="close" onclick={onClose} title="Fechar (Esc)">
+			<h2><Icon name="palette" size={18} /> {t('themes.title')}</h2>
+			<button class="close" onclick={onClose} title={t('themes.close')}>
 				<Icon name="close" size={16} />
 			</button>
 		</div>
@@ -130,7 +131,7 @@
 			class="body"
 			role="listbox"
 			tabindex="-1"
-			aria-label="Temas disponíveis"
+			aria-label={t('themes.availableAria')}
 			bind:this={bodyEl}
 			onkeydown={onBodyKeydown}
 		>
@@ -152,7 +153,7 @@
 				<span class="swatch-row system-swatch">
 					<Icon name="settings" size={16} />
 				</span>
-				<span class="theme-name">Sistema</span>
+				<span class="theme-name">{t('themes.system')}</span>
 				{#if settings.themeId === 'system'}<Icon name="check" size={16} />{/if}
 			</div>
 
@@ -176,11 +177,15 @@
 					<span class="theme-name">{theme.name}</span>
 					<span class="theme-actions">
 						{#if settings.themeId === theme.id}<Icon name="check" size={16} />{/if}
-						<button class="icon-btn" title="Exportar tema" onclick={(e) => exportTheme(theme, e)}>
+						<button class="icon-btn" title={t('themes.exportTheme')} onclick={(e) => exportTheme(theme, e)}>
 							<Icon name="download" size={14} />
 						</button>
 						{#if isCustomTheme(theme.id)}
-							<button class="icon-btn danger" title="Excluir tema" onclick={(e) => deleteTheme(theme.id, e)}>
+							<button
+								class="icon-btn danger"
+								title={t('themes.deleteTheme')}
+								onclick={(e) => deleteTheme(theme.id, e)}
+							>
 								<Icon name="delete-outline" size={14} />
 							</button>
 						{/if}
@@ -190,14 +195,14 @@
 		</div>
 
 		<div class="footer">
-			<p class="note">Crie o seu tema: 9 cores em um JSON. Detalhes em <code>THEMES.md</code>.</p>
+			<p class="note">{t('themes.note')} <code>THEMES.md</code>.</p>
 			<div class="footer-actions">
 				<button class="import" onclick={copyTemplate}>
 					<Icon name={copied ? 'check' : 'download'} size={15} />
-					{copied ? 'Copiado!' : 'Copiar modelo'}
+					{copied ? t('themes.copied') : t('themes.copyTemplate')}
 				</button>
 				<button class="import" onclick={importTheme}>
-					<Icon name="upload-file" size={15} /> Importar tema…
+					<Icon name="upload-file" size={15} /> {t('themes.importTheme')}
 				</button>
 			</div>
 		</div>

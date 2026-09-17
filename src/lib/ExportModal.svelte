@@ -7,6 +7,7 @@
 	import { exportFolder, exportSingleFile, preparePrintPayload } from './exportRunner';
 	import { exportMarkdownToHtml } from './markdownExport';
 	import { baseName } from './paths';
+	import { t } from './i18n.svelte';
 	import type { DirNode, Tab } from './types';
 
 	let {
@@ -36,16 +37,16 @@
 	let doneMessage = $state<string | null>(null);
 
 	const scopeOptions = $derived([
-		{ value: 'file' as const, label: 'Arquivo atual', disabled: !canExportFile },
-		{ value: 'folder' as const, label: 'Pasta inteira', disabled: !rootDir }
+		{ value: 'file' as const, label: t('export.scopeFile'), disabled: !canExportFile },
+		{ value: 'folder' as const, label: t('export.scopeFolder'), disabled: !rootDir }
 	]);
-	const formatOptions: { value: Format; label: string }[] = [
-		{ value: 'md', label: 'Markdown' },
-		{ value: 'txt', label: 'Texto' },
-		{ value: 'html', label: 'HTML' },
-		{ value: 'docx', label: 'Word' },
-		{ value: 'pdf', label: 'PDF' }
-	];
+	const formatOptions = $derived<{ value: Format; label: string }[]>([
+		{ value: 'md', label: t('export.formatMd') },
+		{ value: 'txt', label: t('export.formatTxt') },
+		{ value: 'html', label: t('export.formatHtml') },
+		{ value: 'docx', label: t('export.formatDocx') },
+		{ value: 'pdf', label: t('export.formatPdf') }
+	]);
 
 	const EXT: Record<'md' | 'txt' | 'html' | 'docx', string> = { md: 'md', txt: 'txt', html: 'html', docx: 'docx' };
 
@@ -69,11 +70,11 @@
 		preparePrintPayload(html);
 		new WebviewWindow(`print-${Date.now()}`, {
 			url: '/?print=1',
-			title: `Imprimir — ${title}`,
+			title,
 			width: 900,
 			height: 1000
 		});
-		doneMessage = 'Janela de impressão aberta — escolha "Salvar como PDF" no diálogo do Windows.';
+		doneMessage = t('export.printOpened');
 	}
 
 	async function runExport() {
@@ -104,7 +105,7 @@
 			busy = true;
 			try {
 				await exportSingleFile(realFormat, activeTab.path, activeTab.content, destPath);
-				doneMessage = 'Arquivo exportado.';
+				doneMessage = t('export.fileExported');
 			} catch (e) {
 				error = String(e);
 			} finally {
@@ -114,7 +115,7 @@
 		}
 
 		if (!rootDir) return;
-		const destDir = await open({ directory: true, title: 'Escolha a pasta de destino' });
+		const destDir = await open({ directory: true, title: t('export.chooseDestFolder') });
 		if (typeof destDir !== 'string') return;
 		busy = true;
 		progress = { done: 0, total: 0 };
@@ -124,8 +125,8 @@
 			});
 			doneMessage =
 				result.failed.length > 0
-					? `${result.written} arquivo(s) exportado(s), ${result.failed.length} com erro.`
-					: `${result.written} arquivo(s) exportado(s) com sucesso.`;
+					? t('export.resultWithErrors', { written: result.written, failed: result.failed.length })
+					: t('export.resultSuccess', { written: result.written });
 		} catch (e) {
 			error = String(e);
 		} finally {
@@ -147,13 +148,13 @@
 		role="dialog"
 		tabindex="-1"
 		aria-modal="true"
-		aria-label="Exportar"
+		aria-label={t('export.title')}
 		onclick={(e) => e.stopPropagation()}
 		onkeydown={(e) => e.stopPropagation()}
 	>
 		<div class="header">
-			<h2><Icon name="download" size={18} /> Exportar</h2>
-			<button class="close" onclick={onClose} title="Fechar (Esc)" disabled={busy}>
+			<h2><Icon name="download" size={18} /> {t('export.title')}</h2>
+			<button class="close" onclick={onClose} title={t('export.close')} disabled={busy}>
 				<Icon name="close" size={16} />
 			</button>
 		</div>
@@ -167,13 +168,15 @@
 			{/if}
 
 			<div class="row">
-				<span class="row-label">Escopo</span>
+				<span class="row-label">{t('export.scope')}</span>
 				<div class="segmented" role="toolbar" tabindex="-1" onkeydown={onSegmentedKeydown}>
 					{#each scopeOptions as opt (opt.value)}
 						<button
 							class:active={scope === opt.value}
 							disabled={opt.disabled || busy}
-							title={opt.disabled ? (opt.value === 'file' ? 'Abra um arquivo markdown para exportar só ele' : 'Nenhuma pasta aberta') : ''}
+							title={opt.disabled
+								? t(opt.value === 'file' ? 'export.scopeFileDisabledTitle' : 'export.scopeFolderDisabledTitle')
+								: ''}
 							onclick={() => selectScope(opt.value)}
 						>
 							{opt.label}
@@ -183,15 +186,13 @@
 			</div>
 
 			<div class="row">
-				<span class="row-label">Formato</span>
+				<span class="row-label">{t('export.format')}</span>
 				<div class="segmented" role="toolbar" tabindex="-1" onkeydown={onSegmentedKeydown}>
 					{#each formatOptions as opt (opt.value)}
 						<button
 							class:active={format === opt.value}
 							disabled={busy || (opt.value === 'pdf' && scope === 'folder')}
-							title={opt.value === 'pdf' && scope === 'folder'
-								? 'PDF de pasta inteira abriria um diálogo de impressão por arquivo — exporte um arquivo de cada vez, ou use HTML/DOCX para a pasta toda'
-								: ''}
+							title={opt.value === 'pdf' && scope === 'folder' ? t('export.pdfFolderDisabledTitle') : ''}
 							onclick={() => (format = opt.value)}
 						>
 							{opt.label}
@@ -201,18 +202,13 @@
 			</div>
 
 			{#if format === 'pdf'}
-				<p class="hint">
-					PDF usa o diálogo de impressão do Windows ("Salvar como PDF") — mesma formatação da pré-via, sem depender de
-					nenhuma biblioteca extra.
-				</p>
+				<p class="hint">{t('export.hintPdf')}</p>
 			{:else if scope === 'folder'}
 				<p class="hint">
 					{#if format === 'md'}
-						Espelha a pasta inteira no destino, incluindo imagens e PDFs referenciados — os links relativos continuam
-						funcionando.
+						{t('export.hintFolderMd')}
 					{:else}
-						Cada arquivo markdown vira um <strong>.{EXT[format as 'txt' | 'html' | 'docx']}</strong> no destino, na mesma
-						estrutura de pastas; imagens ficam embutidas no próprio arquivo convertido.
+						{t('export.hintFolderOther', { ext: EXT[format as 'txt' | 'html' | 'docx'] })}
 					{/if}
 				</p>
 			{/if}
@@ -233,9 +229,9 @@
 		<div class="footer">
 			<button class="export" onclick={runExport} disabled={busy}>
 				{#if busy}
-					Exportando…
+					{t('export.exporting')}
 				{:else}
-					<Icon name="download" size={15} /> Exportar
+					<Icon name="download" size={15} /> {t('export.exportButton')}
 				{/if}
 			</button>
 		</div>

@@ -11,6 +11,7 @@
 		recordingState
 	} from './shortcuts.svelte';
 	import type { CommandId } from './shortcuts.svelte';
+	import { t } from './i18n.svelte';
 
 	let { onClose }: { onClose: () => void } = $props();
 
@@ -30,7 +31,7 @@
 	function conflictFor(id: CommandId): string | null {
 		const value = shortcuts[id];
 		const other = SHORTCUT_DEFS.find((d) => d.id !== id && shortcuts[d.id] === value);
-		return other?.label ?? null;
+		return other ? t(other.labelKey) : null;
 	}
 
 	/** Captura globalmente enquanto grava, para pegar a combinação mesmo que
@@ -78,13 +79,13 @@
 		role="dialog"
 		tabindex="-1"
 		aria-modal="true"
-		aria-label="Atalhos de teclado"
+		aria-label={t('shortcuts.title')}
 		onclick={(e) => e.stopPropagation()}
 		onkeydown={() => {}}
 	>
 		<div class="header">
-			<h2><Icon name="keyboard" size={18} /> Atalhos de teclado</h2>
-			<button class="close" onclick={onClose} title="Fechar (Esc)">
+			<h2><Icon name="keyboard" size={18} /> {t('shortcuts.title')}</h2>
+			<button class="close" onclick={onClose} title={t('shortcuts.close')}>
 				<Icon name="close" size={16} />
 			</button>
 		</div>
@@ -94,9 +95,9 @@
 				{@const conflict = conflictFor(def.id)}
 				<div class="row">
 					<div class="row-label">
-						<span>{def.label}</span>
+						<span>{t(def.labelKey)}</span>
 						{#if conflict}
-							<span class="conflict-note">também usado em "{conflict}"</span>
+							<span class="conflict-note">{t('shortcuts.alsoUsedIn', { label: conflict })}</span>
 						{/if}
 					</div>
 					<div class="shortcut-controls">
@@ -106,9 +107,9 @@
 							class:conflict={conflict !== null}
 							onclick={() => startRecording(def.id)}
 						>
-							{recordingId === def.id ? 'Pressione uma tecla…' : shortcuts[def.id]}
+							{recordingId === def.id ? t('shortcuts.pressKey') : shortcuts[def.id]}
 						</button>
-						<button class="icon-btn" onclick={() => resetShortcut(def.id)} title="Restaurar padrão">
+						<button class="icon-btn" onclick={() => resetShortcut(def.id)} title={t('shortcuts.restoreDefault')}>
 							<Icon name="restore" size={14} />
 						</button>
 					</div>
@@ -117,7 +118,7 @@
 		</div>
 
 		<div class="footer">
-			<button class="reset" onclick={resetShortcuts}>Restaurar todos os padrões</button>
+			<button class="reset" onclick={resetShortcuts}>{t('shortcuts.restoreAll')}</button>
 		</div>
 	</div>
 </div>

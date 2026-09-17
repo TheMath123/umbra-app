@@ -1,6 +1,7 @@
 <script lang="ts">
 	import Icon from './Icon.svelte';
 	import { shortcuts } from './shortcuts.svelte';
+	import { t } from './i18n.svelte';
 	import pkg from '../../package.json';
 
 	let { onClose }: { onClose: () => void } = $props();
@@ -9,24 +10,21 @@
 	// Personalizar atalhos), então esta lista sempre reflete o que está
 	// valendo de fato, mesmo se o usuário tiver mudado algo.
 	let entries = $derived<{ keys: string; desc: string }[]>([
-		{ keys: 'Clique no texto', desc: 'Edita o parágrafo, título ou item de lista clicado (estilo Typora)' },
-		{ keys: 'Clique em link', desc: 'Abre no navegador (externo) ou navega até o arquivo (interno)' },
-		{ keys: 'Esc', desc: 'Cancela a edição do bloco atual' },
-		{ keys: shortcuts.nextTab, desc: 'Vai para a próxima aba' },
-		{ keys: shortcuts.prevTab, desc: 'Vai para a aba anterior' },
-		{ keys: 'Ctrl + 1 … 9', desc: 'Vai direto para a aba correspondente' },
-		{ keys: shortcuts.closeTab, desc: 'Fecha a aba atual' },
-		{ keys: 'Arrastar aba', desc: 'Reordena as abas' },
-		{ keys: 'Arrastar aba para fora', desc: 'Abre a aba em uma nova janela' },
-		{ keys: `${shortcuts.zoomIn} / ${shortcuts.zoomOut}`, desc: 'Aumenta ou diminui o zoom da visualização' },
-		{ keys: 'Ctrl + roda do mouse', desc: 'Também ajusta o zoom' },
-		{ keys: shortcuts.zoomReset, desc: 'Restaura o zoom para 100%' },
-		{ keys: shortcuts.toggleSidebar, desc: 'Fixa ou oculta automaticamente a barra lateral' },
-		{
-			keys: 'Clique direito na árvore',
-			desc: 'Nova pasta, novo arquivo, renomear, excluir ou arrastar para mover'
-		},
-		{ keys: shortcuts.toggleHelp, desc: 'Abre esta janela de ajuda' }
+		{ keys: t('help.clickText'), desc: t('help.clickTextDesc') },
+		{ keys: t('help.clickLink'), desc: t('help.clickLinkDesc') },
+		{ keys: t('help.esc'), desc: t('help.escDesc') },
+		{ keys: shortcuts.nextTab, desc: t('help.nextTabDesc') },
+		{ keys: shortcuts.prevTab, desc: t('help.prevTabDesc') },
+		{ keys: t('help.tabNumbers'), desc: t('help.tabNumbersDesc') },
+		{ keys: shortcuts.closeTab, desc: t('help.closeTabDesc') },
+		{ keys: t('help.dragTab'), desc: t('help.dragTabDesc') },
+		{ keys: t('help.dragTabOut'), desc: t('help.dragTabOutDesc') },
+		{ keys: `${shortcuts.zoomIn} / ${shortcuts.zoomOut}`, desc: t('help.zoomDesc') },
+		{ keys: t('help.wheelZoom'), desc: t('help.wheelZoomDesc') },
+		{ keys: shortcuts.zoomReset, desc: t('help.zoomResetDesc') },
+		{ keys: shortcuts.toggleSidebar, desc: t('help.toggleSidebarDesc') },
+		{ keys: t('help.rightClickTree'), desc: t('help.rightClickTreeDesc') },
+		{ keys: shortcuts.toggleHelp, desc: t('help.toggleHelpDesc') }
 	]);
 
 	function onKeydown(e: KeyboardEvent) {
@@ -42,16 +40,16 @@
 		role="dialog"
 		tabindex="-1"
 		aria-modal="true"
-		aria-label="Ajuda e atalhos"
+		aria-label={t('help.title')}
 		onclick={(e) => e.stopPropagation()}
 		onkeydown={(e) => e.stopPropagation()}
 	>
 		<div class="header">
-			<h2>Ajuda e atalhos</h2>
-			<button class="close" onclick={onClose} title="Fechar (Esc)"><Icon name="close" size={16} /></button>
+			<h2>{t('help.title')}</h2>
+			<button class="close" onclick={onClose} title={t('help.close')}><Icon name="close" size={16} /></button>
 		</div>
 
-		<p class="version">MD Reader <span>v{pkg.version}</span></p>
+		<p class="version">{t('help.version', { version: pkg.version })}</p>
 
 		<table class="shortcuts">
 			<tbody>
@@ -64,7 +62,7 @@
 			</tbody>
 		</table>
 
-		<p class="note">Mais documentação sobre o MD Reader chega por aqui em breve.</p>
+		<p class="note">{t('help.moreComingSoon')}</p>
 	</div>
 </div>
 
@@ -107,9 +105,6 @@
 		margin: -6px 0 12px;
 		font-size: 12px;
 		color: var(--text-muted);
-	}
-
-	.version span {
 		font-variant-numeric: tabular-nums;
 	}
 

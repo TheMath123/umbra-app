@@ -208,7 +208,18 @@ export function isCustomTheme(id: string): boolean {
 	return customThemes.some((t) => t.id === id);
 }
 
-export class ThemeValidationError extends Error {}
+/** `key`/`params` são a chave de tradução (ver `i18n.svelte.ts`) e seus
+ *  parâmetros — quem exibe o erro (ThemeModal) é quem chama `t()`, para o
+ *  texto respeitar o idioma ativo no momento em que aparece na tela. */
+export class ThemeValidationError extends Error {
+	key: string;
+	params?: Record<string, string>;
+	constructor(key: string, params?: Record<string, string>) {
+		super(key);
+		this.key = key;
+		this.params = params;
+	}
+}
 
 /** Aceita o JSON de um arquivo de tema (ver THEMES.md) e devolve um
  *  ThemeDef válido, ou lança ThemeValidationError explicando o problema. */
@@ -217,24 +228,24 @@ export function parseThemeJson(raw: string): ThemeDef {
 	try {
 		data = JSON.parse(raw);
 	} catch {
-		throw new ThemeValidationError('Arquivo não é um JSON válido.');
+		throw new ThemeValidationError('themes.errorNotJson');
 	}
 	if (typeof data !== 'object' || data === null) {
-		throw new ThemeValidationError('O tema precisa ser um objeto JSON.');
+		throw new ThemeValidationError('themes.errorMustBeObject');
 	}
 	const obj = data as Record<string, unknown>;
 	if (typeof obj.name !== 'string' || obj.name.trim() === '') {
-		throw new ThemeValidationError('Falta o campo "name" (nome do tema).');
+		throw new ThemeValidationError('themes.errorMissingName');
 	}
 	if (typeof obj.colors !== 'object' || obj.colors === null) {
-		throw new ThemeValidationError('Falta o campo "colors" com as cores do tema.');
+		throw new ThemeValidationError('themes.errorMissingColors');
 	}
 	const colorsIn = obj.colors as Record<string, unknown>;
 	const colors = {} as ThemeColors;
 	for (const key of THEME_COLOR_KEYS) {
 		const value = colorsIn[key];
 		if (typeof value !== 'string' || value.trim() === '') {
-			throw new ThemeValidationError(`Falta a cor "colors.${key}" (veja THEMES.md).`);
+			throw new ThemeValidationError('themes.errorMissingColor', { key });
 		}
 		colors[key] = value;
 	}
