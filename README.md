@@ -11,6 +11,10 @@ Leitor e editor de Markdown leve, rápido e moderno para Windows, construído co
 
 O app vem com temas prontos e aceita temas customizados via um arquivo `.json` simples — veja [THEMES.md](THEMES.md) para o formato e como criar o seu.
 
+## Idiomas
+
+Disponível em Português (Brasil) e English, com detecção automática do idioma do sistema. Contribuir com uma tradução nova é editar um arquivo `.json` — veja [I18N.md](I18N.md).
+
 ## Desenvolvimento
 
 ```bash

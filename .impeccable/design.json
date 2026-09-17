@@ -1,6 +1,6 @@
 {
   "schemaVersion": 2,
-  "generatedAt": "2026-09-17T01:00:00.000Z",
+  "generatedAt": "2026-09-17T02:00:00.000Z",
   "title": "Design System: MD Reader",
   "extensions": {
     "colorMeta": {
@@ -67,7 +67,6 @@
       { "name": "overlay-dim", "value": "rgba(0, 0, 0, 0.4)", "purpose": "Pano de fundo por trás de qualquer modal." },
       { "name": "modal-elevation", "value": "0 8px 24px rgba(0, 0, 0, 0.18)", "purpose": "Diálogos modais (Configurações, Temas, Atalhos, Ajuda) — discreta, à la Typora/Zed, não uma sombra de marketing." },
       { "name": "context-menu-elevation", "value": "0 6px 20px rgba(0, 0, 0, 0.16)", "purpose": "Menu de clique direito da árvore de arquivos." },
-      { "name": "floating-controls-elevation", "value": "0 2px 8px rgba(0, 0, 0, 0.14)", "purpose": "Controles de zoom sobre imagem/PDF." },
       { "name": "auto-hide-sidebar-elevation", "value": "2px 0 10px rgba(0, 0, 0, 0.14)", "purpose": "Sidebar em modo automático, só enquanto aberta sobre o conteúdo." }
     ],
     "motion": [
@@ -131,6 +130,14 @@
       "description": "Configurações, Temas, Atalhos, Ajuda — mesma estrutura header/body/footer.",
       "html": "<div class=\"ds-modal\"><div class=\"ds-modal-header\"><h2>Configurações</h2><button aria-label=\"Fechar\">✕</button></div><div class=\"ds-modal-body\">Conteúdo</div></div>",
       "css": ".ds-modal { background: #ffffff; border: 1px solid #e2e2e5; border-radius: 8px; box-shadow: 0 8px 24px rgba(0,0,0,0.18); width: min(460px, calc(100vw - 32px)); } .ds-modal-header { display: flex; align-items: center; justify-content: space-between; padding: 16px 20px; border-bottom: 1px solid #e2e2e5; } .ds-modal-header h2 { font-size: 15px; margin: 0; } .ds-modal-body { padding: 4px 20px 8px; overflow-y: auto; overflow-x: hidden; }"
+    },
+    {
+      "name": "Barra de Status",
+      "kind": "custom",
+      "refersTo": "status-bar",
+      "description": "Faixa na base da área de conteúdo: estatísticas do documento à esquerda, zoom à direita — sem borda, sem fundo, sem sombra próprios; se integra direto ao fundo da página.",
+      "html": "<div class=\"ds-status-bar\"><span class=\"ds-status-stats\">Linha 12 de 340 · 5.212 caracteres</span><div class=\"ds-status-zoom\"><button aria-label=\"Diminuir\">−</button><button>100%</button><button aria-label=\"Aumentar\">+</button></div></div>",
+      "css": ".ds-status-bar { display: flex; align-items: center; justify-content: space-between; gap: 12px; height: 26px; padding: 0 10px 0 12px; font-size: 12px; color: #6b6b70; } .ds-status-zoom { display: flex; align-items: center; gap: 2px; } .ds-status-zoom button { border: none; background: none; color: #6b6b70; padding: 3px 6px; font-size: 12px; border-radius: 4px; cursor: pointer; } .ds-status-zoom button:hover { background: #ececef; color: #1a1a1e; }"
     }
   ],
   "narrative": {
@@ -154,8 +161,8 @@
     ],
     "dos": [
       "Do usar borda de 1px (var(--border)) para separar qualquer superfície fixa da interface.",
-      "Do reservar box-shadow só para o que literalmente flutua sobre o conteúdo (modal, menu de contexto, controles de zoom, sidebar automática aberta).",
-      "Do manter o raio de canto na escala 4/6/8/10px conforme a hierarquia do elemento — nunca pill, exceto o badge de status.",
+      "Do reservar box-shadow só para o que literalmente flutua sobre o conteúdo (modal, menu de contexto, sidebar automática aberta).",
+      "Do manter o raio de canto na escala 3/4/6/8px conforme a hierarquia do elemento — nunca pill.",
       "Do resetar completamente o chrome nativo de qualquer <button> antes de aplicar o estilo do tema.",
       "Do expor variação de fonte, tamanho, largura de coluna e espaçamento do corpo do documento como preferência do usuário.",
       "Do dar a todo componente interativo novo navegação por setas + confirmação por Enter/Espaço, com foco inicial já no item relevante."

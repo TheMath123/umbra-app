@@ -1,0 +1,38 @@
+name: Release
+
+# Dispara ao empurrar uma tag "vX.Y.Z" — o jeito de "criar uma versão":
+#   1. atualize "version" em package.json e src-tauri/tauri.conf.json
+#   2. git tag v0.2.0 && git push origin v0.2.0
+# A action oficial da Tauri compila o instalador do Windows e sobe (ou cria)
+# o GitHub Release da tag, já com o instalador anexado — sem passo manual.
+on:
+  push:
+    tags:
+      - "v*.*.*"
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - name: Instala dependências do frontend
+        run: npm ci
+
+      - uses: tauri-apps/tauri-action@v0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tagName: ${{ github.ref_name }}
+          releaseName: "MD Reader ${{ github.ref_name }}"
+          releaseDraft: true
+          prerelease: false

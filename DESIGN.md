@@ -167,8 +167,9 @@ O sistema é flat em repouso. Sidebar, barra de abas, botões, linhas da árvore
 - **Overlay dim** (`background: rgba(0,0,0,0.4)` cobrindo a tela): pano de fundo por trás de qualquer modal.
 - **Modal elevation** (`box-shadow: 0 8px 24px rgba(0,0,0,0.18)`): diálogos (Configurações, Temas, Atalhos, Ajuda). Deliberadamente mais discreta que uma sombra de card de marketing — o modal se anuncia, não "flutua com drama".
 - **Context menu elevation** (`box-shadow: 0 6px 20px rgba(0,0,0,0.16)`): menu de clique direito da árvore.
-- **Floating controls elevation** (`box-shadow: 0 2px 8px rgba(0,0,0,0.14)`): controles de zoom sobre imagem/PDF.
 - **Auto-hide sidebar elevation** (`box-shadow: 2px 0 10px rgba(0,0,0,0.14)`): só enquanto a sidebar automática está aberta sobre o conteúdo.
+
+Os controles de zoom não têm sombra própria: vivem dentro da barra de status (ver Components → Barra de Status), uma superfície fixa, não flutuante.
 
 ### Named Rules
 **The Floating-Only Shadow Rule.** Se um elemento está sempre presente no layout (não aparece/desaparece por cima de outra coisa), ele não tem sombra. Adicionar sombra a um botão, card ou linha de lista fixa é uma regressão visual, não um refinamento.
@@ -178,7 +179,7 @@ O sistema é flat em repouso. Sidebar, barra de abas, botões, linhas da árvore
 Geometria quadradinha, à la Zed: cantos são apenas levemente arredondados e crescem em passos pequenos com o "peso" do elemento. Não existe nenhum componente pill no sistema — nem o badge de status, convertido para a mesma escala dos demais.
 - **3px** (`rounded.xs`): `<kbd>`, código inline.
 - **4px** (`rounded.sm`): botões-ícone pequenos (fechar, editar, restaurar), botões de texto, controles segmentados, tema/swatch cards, imagens dentro do documento renderizado, badge de status.
-- **6px** (`rounded.md`): menu de contexto, grupo de controles de zoom.
+- **6px** (`rounded.md`): menu de contexto.
 - **8px** (`rounded.lg`): diálogos modais (a superfície "mais importante" da UI ganha o raio mais generoso, mas ainda contido).
 
 Bordas são sempre 1px sólidas na cor `border`; não há bordas grossas, tracejadas ou coloridas fora do estado de destaque (`box-shadow: inset 0 0 0 2px var(--accent)` ao arrastar um item sobre uma pasta-alvo, ou `border-color: var(--accent)` num tema selecionado/ativo).
@@ -215,12 +216,18 @@ A superfície de leitura/edição não distingue "modo visualização" de "modo 
 ### Status Badge (componente de assinatura)
 Pequeno indicador (`4px`, fundo `surface`, borda `border`) ancorado no canto superior direito do editor, mostrando o estado de salvamento. Segue a mesma escala de raio de qualquer outro elemento pequeno do app — não há tratamento especial de forma.
 
+### Barra de Título
+Faixa de 36px no topo da janela (mesma altura das abas), substituindo a decoração nativa do Windows — arrastável em qualquer espaço vazio (clicar e segurar move a janela; duplo-clique maximiza/restaura). Reúne, numa linha só: o nome do repositório + ações da árvore (largura fixa, alinhada com a sidebar), as abas de arquivo abertas (preenchendo o espaço central) e, à direita, o botão "..." e os três controles de sistema (minimizar, maximizar/restaurar, fechar) — todos ghost, exceto o fechar, que no hover usa `danger` (não uma cor fixa do Windows), mantendo a superfície inteira trocável pelo sistema de temas.
+
+### Barra de Status
+Faixa fina (26px) na base da área de conteúdo, ao lado da sidebar — sem borda, sem fundo próprio, sem sombra: não é uma superfície separada, é texto discreto direto sobre o fundo da página (`bg`), a integração mais "sem chrome" do app. Texto em Caption (12px, `text-muted`), separadores discretos ("·") entre itens. À esquerda: linha atual, total de linhas e total de caracteres do documento markdown ativo — o número de caracteres selecionados aparece só quando há seleção, destacado na cor `accent`. À direita: os controles de zoom, igualmente sem chrome (só os três botões-fantasma). Some por completo quando a aba ativa é PDF (usa o zoom do visualizador nativo).
+
 ## Do's and Don'ts
 
 ### Do:
 - **Do** usar borda de 1px (`var(--border)`) para separar qualquer superfície fixa da interface.
-- **Do** reservar `box-shadow` só para o que literalmente flutua sobre o conteúdo (modal, menu de contexto, controles de zoom, sidebar automática aberta).
-- **Do** manter o raio de canto na escala 4/6/8/10px conforme a hierarquia do elemento — nunca pill, exceto o badge de status.
+- **Do** reservar `box-shadow` só para o que literalmente flutua sobre o conteúdo (modal, menu de contexto, sidebar automática aberta).
+- **Do** manter o raio de canto na escala 3/4/6/8px conforme a hierarquia do elemento — nunca pill.
 - **Do** resetar completamente o chrome nativo de qualquer `<button>` (`border: none; background: none`) antes de aplicar o estilo do tema.
 - **Do** expor variação de fonte, tamanho, largura de coluna e espaçamento do corpo do documento como preferência do usuário, não como decisão fixa de marca.
 - **Do** dar a todo componente interativo novo (lista, menu, grupo de opções) navegação por setas + confirmação por Enter/Espaço, com foco inicial já no item relevante.
