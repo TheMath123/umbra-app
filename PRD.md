@@ -1,4 +1,4 @@
-# PRD — Próximas features (MD Reader)
+# PRD — Próximas features (Umbra)
 
 Registro das três demandas passadas em 2026-09-17, na ordem pedida. Sem necessidade de aprovação agora — implementação vem depois de testar as correções pendentes do editor.
 
@@ -7,7 +7,7 @@ Registro das três demandas passadas em 2026-09-17, na ordem pedida. Sem necessi
 ## 1. Integração com o Explorer do Windows
 
 **Status: já implementado**, em Configurações → "Integração com o Windows" (dois toggles independentes, `HKEY_CURRENT_USER`, reversíveis):
-- Menu de contexto "Abrir com MD Reader" ao clicar com o botão direito numa pasta (ou no fundo de uma pasta aberta).
+- Menu de contexto "Abrir com Umbra" ao clicar com o botão direito numa pasta (ou no fundo de uma pasta aberta).
 - Associação de `.md` à lista "Abrir com" do Windows — abrir um arquivo associado já abre ele numa aba (não só a pasta).
 
 **Decisão pendente:** confirmar se o comportamento atual (opt-in, o usuário liga manualmente em Configurações) atende, ou se a intenção é registrar automaticamente sem ação do usuário (ex.: no primeiro launch, ou só no instalador/build final). Se for a segunda opção, é um trabalho diferente do que já existe — registrar direto no instalador (NSIS) em vez de em runtime.

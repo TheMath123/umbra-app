@@ -1,4 +1,4 @@
-# Temas do MD Reader
+# Temas do Umbra
 
 Um tema é um arquivo `.json` com um nome e nove cores. É isso — sem plugins,
 sem build, sem CSS. Crie o seu, importe pelo menu **"..." → Tema → Importar

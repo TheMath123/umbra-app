@@ -42,7 +42,7 @@ export const DEFAULT_SETTINGS: AppSettings = {
 	sidebarMode: 'fixed'
 };
 
-const STORAGE_KEY = 'mdreader.settings';
+const STORAGE_KEY = 'umbra.settings';
 
 function load(): AppSettings {
 	try {

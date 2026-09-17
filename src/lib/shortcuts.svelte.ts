@@ -32,7 +32,7 @@ const DEFAULT_SHORTCUTS = Object.fromEntries(SHORTCUT_DEFS.map((d) => [d.id, d.d
 	string
 >;
 
-const STORAGE_KEY = 'mdreader.shortcuts';
+const STORAGE_KEY = 'umbra.shortcuts';
 
 function load(): Record<CommandId, string> {
 	try {

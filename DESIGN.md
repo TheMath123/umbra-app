@@ -1,5 +1,5 @@
 ---
-name: MD Reader
+name: Umbra
 description: Leitor e editor de markdown leve e nativo, com edição contínua estilo Typora/Obsidian
 colors:
   bg: "#ffffff"
@@ -85,13 +85,13 @@ components:
     rounded: "{rounded.sm}"
 ---
 
-# Design System: MD Reader
+# Design System: Umbra
 
 ## Overview
 
 **Creative North Star: "The Focused Workbench"**
 
-MD Reader é uma bancada de trabalho enxuta, não uma vitrine. A interface parte do princípio de que o documento markdown é o único protagonista: cromo é reduzido ao mínimo funcional, cor é usada apenas para dizer "isto está ativo, selecionado ou clicável", e qualquer controle que não seja necessário na maior parte do tempo (configurações, atalhos, temas, zoom) fica escondido atrás de um gatilho discreto até ser chamado. É a estética de um editor de código bem calibrado (VSCode, Sublime) aplicada à leitura e escrita de prosa, não a estética de um produto de marketing.
+Umbra é uma bancada de trabalho enxuta, não uma vitrine. A interface parte do princípio de que o documento markdown é o único protagonista: cromo é reduzido ao mínimo funcional, cor é usada apenas para dizer "isto está ativo, selecionado ou clicável", e qualquer controle que não seja necessário na maior parte do tempo (configurações, atalhos, temas, zoom) fica escondido atrás de um gatilho discreto até ser chamado. É a estética de um editor de código bem calibrado (VSCode, Sublime) aplicada à leitura e escrita de prosa, não a estética de um produto de marketing.
 
 A superfície é quase inteiramente plana — divisórias são feitas com bordas de 1px, não com sombra — e ganha profundidade apenas quando algo literalmente flutua sobre o conteúdo (um modal, um menu de contexto, os controles de zoom). Isso não é ausência de acabamento; é a regra confirmada do sistema (ver **Elevação & Profundidade**). A tipografia segue o mesmo raciocínio: hierarquia vem de peso e tamanho, nunca de decoração, e o próprio corpo do texto pode ser inteiramente reconfigurado pelo usuário (fonte, tamanho, largura de coluna, espaçamento entre linhas) — o sistema visual existe para servir a leitura de quem está usando, não para impor uma identidade fixa de marca.
 

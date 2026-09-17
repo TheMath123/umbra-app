@@ -1,5 +1,5 @@
 /**
- * Sistema de idiomas (i18n) do MD Reader.
+ * Sistema de idiomas (i18n) do Umbra.
  *
  * Cada idioma é um arquivo JSON simples em `src/lib/locales/<código>.json`
  * — "chave": "texto", sem aninhamento. O formato (e como a comunidade
@@ -34,7 +34,7 @@ function detectSystemLocale(): LocaleId {
 	return lang.toLowerCase().startsWith('pt') ? 'pt-BR' : 'en';
 }
 
-const STORAGE_KEY = 'mdreader.locale';
+const STORAGE_KEY = 'umbra.locale';
 
 function loadLocale(): LocaleId {
 	try {

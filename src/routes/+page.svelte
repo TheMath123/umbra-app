@@ -160,7 +160,7 @@
 		const url = `/?root=${encodeURIComponent(rootDir)}&file=${encodeURIComponent(tab.path)}`;
 		const win = new WebviewWindow(label, {
 			url,
-			title: tab.path.split(/[\\/]/).pop() ?? 'MD Reader',
+			title: tab.path.split(/[\\/]/).pop() ?? 'Umbra',
 			width: 900,
 			height: 700,
 			decorations: false

@@ -110,7 +110,7 @@ export async function exportFolder(
 	return { written: done - failed.length, failed };
 }
 
-const PRINT_PAYLOAD_KEY = 'mdreader.printPayload';
+const PRINT_PAYLOAD_KEY = 'umbra.printPayload';
 
 /** PDF sai pelo diálogo de impressão nativo do Windows ("Salvar como
  *  PDF") — sem depender de nenhuma biblioteca pesada de geração de PDF,

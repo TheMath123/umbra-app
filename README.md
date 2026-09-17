@@ -1,4 +1,4 @@
-# MD Reader
+# Umbra
 
 Leitor e editor de Markdown leve, rápido e moderno para Windows, construído com Tauri + Svelte.
 

@@ -1,5 +1,5 @@
 /**
- * Sistema de temas do MD Reader.
+ * Sistema de temas do Umbra.
  *
  * Um tema é só um objeto com um punhado de cores — veja `ThemeColors`.
  * O formato de arquivo (para importar/exportar/compartilhar) está
@@ -174,7 +174,7 @@ export const BUILTIN_THEMES: ThemeDef[] = [
 	}
 ];
 
-const CUSTOM_THEMES_KEY = 'mdreader.customThemes';
+const CUSTOM_THEMES_KEY = 'umbra.customThemes';
 
 function loadCustomThemes(): ThemeDef[] {
 	try {

@@ -1,7 +1,7 @@
 {
   "schemaVersion": 2,
   "generatedAt": "2026-09-17T02:00:00.000Z",
-  "title": "Design System: MD Reader",
+  "title": "Design System: Umbra",
   "extensions": {
     "colorMeta": {
       "accent": {
@@ -142,7 +142,7 @@
   ],
   "narrative": {
     "northStar": "The Focused Workbench",
-    "overview": "MD Reader é uma bancada de trabalho enxuta, não uma vitrine. A interface parte do princípio de que o documento markdown é o único protagonista: cromo é reduzido ao mínimo funcional, cor é usada apenas para dizer \"isto está ativo, selecionado ou clicável\", e qualquer controle que não seja necessário na maior parte do tempo (configurações, atalhos, temas, zoom) fica escondido atrás de um gatilho discreto até ser chamado. É a estética de um editor de código bem calibrado (VSCode, Sublime) aplicada à leitura e escrita de prosa, não a estética de um produto de marketing.\n\nA superfície é quase inteiramente plana — divisórias são feitas com bordas de 1px, não com sombra — e ganha profundidade apenas quando algo literalmente flutua sobre o conteúdo (um modal, um menu de contexto, os controles de zoom). Isso não é ausência de acabamento; é a regra confirmada do sistema. A tipografia segue o mesmo raciocínio: hierarquia vem de peso e tamanho, nunca de decoração, e o próprio corpo do texto pode ser inteiramente reconfigurado pelo usuário — o sistema visual existe para servir a leitura de quem está usando, não para impor uma identidade fixa de marca.",
+    "overview": "Umbra é uma bancada de trabalho enxuta, não uma vitrine. A interface parte do princípio de que o documento markdown é o único protagonista: cromo é reduzido ao mínimo funcional, cor é usada apenas para dizer \"isto está ativo, selecionado ou clicável\", e qualquer controle que não seja necessário na maior parte do tempo (configurações, atalhos, temas, zoom) fica escondido atrás de um gatilho discreto até ser chamado. É a estética de um editor de código bem calibrado (VSCode, Sublime) aplicada à leitura e escrita de prosa, não a estética de um produto de marketing.\n\nA superfície é quase inteiramente plana — divisórias são feitas com bordas de 1px, não com sombra — e ganha profundidade apenas quando algo literalmente flutua sobre o conteúdo (um modal, um menu de contexto, os controles de zoom). Isso não é ausência de acabamento; é a regra confirmada do sistema. A tipografia segue o mesmo raciocínio: hierarquia vem de peso e tamanho, nunca de decoração, e o próprio corpo do texto pode ser inteiramente reconfigurado pelo usuário — o sistema visual existe para servir a leitura de quem está usando, não para impor uma identidade fixa de marca.",
     "keyCharacteristics": [
       "Plano por padrão; sombra é reservada para o que flutua sobre o conteúdo.",
       "Cor é funcional, não decorativa: a cor de destaque (indigo) só aparece em elementos ativos/selecionados/clicáveis.",

@@ -1,5 +1,5 @@
-//! Integração com o Explorer do Windows: menu de contexto ("Abrir com MD
-//! Reader" em pastas) e associação de arquivo (`.md` na lista "Abrir com").
+//! Integração com o Explorer do Windows: menu de contexto ("Abrir com
+//! Umbra" em pastas) e associação de arquivo (`.md` na lista "Abrir com").
 //!
 //! Tudo em `HKEY_CURRENT_USER\Software\Classes` — por usuário, sem exigir
 //! administrador, e completamente reversível (o "desativar" apaga
@@ -10,8 +10,8 @@ use std::env;
 use winreg::enums::*;
 use winreg::RegKey;
 
-const CONTEXT_MENU_LABEL: &str = "Abrir com MD Reader";
-const PROG_ID: &str = "MDReader.md";
+const CONTEXT_MENU_LABEL: &str = "Abrir com Umbra";
+const PROG_ID: &str = "Umbra.md";
 
 fn exe_path() -> Result<String, String> {
     env::current_exe()
@@ -29,8 +29,8 @@ fn classes_root() -> RegKey {
 /// entrada para o clique com o botão direito numa pasta, outra para o
 /// clique no fundo vazio de uma pasta já aberta.
 const CONTEXT_MENU_KEYS: [(&str, &str); 2] = [
-    ("Directory\\shell\\MDReader", "%1"),
-    ("Directory\\Background\\shell\\MDReader", "%V")
+    ("Directory\\shell\\Umbra", "%1"),
+    ("Directory\\Background\\shell\\Umbra", "%V")
 ];
 
 pub fn set_context_menu(enabled: bool) -> Result<(), String> {
@@ -56,7 +56,7 @@ pub fn set_context_menu(enabled: bool) -> Result<(), String> {
 
 pub fn context_menu_enabled() -> bool {
     classes_root()
-        .open_subkey("Software\\Classes\\Directory\\shell\\MDReader")
+        .open_subkey("Software\\Classes\\Directory\\shell\\Umbra")
         .is_ok()
 }
 

@@ -1,7 +1,7 @@
 {
-  "name": "md-reader",
+  "name": "umbra",
   "version": "0.1.0",
-  "description": "MD Reader — leitor e editor de Markdown leve e rápido",
+  "description": "Umbra — leitor e editor de Markdown leve e rápido",
   "type": "module",
   "scripts": {
     "dev": "vite dev",
