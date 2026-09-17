@@ -8,6 +8,15 @@ export interface DirNode {
 	children: DirNode[] | null;
 }
 
+/** Estatísticas do documento no editor — expostas pelo `MarkdownView`
+ *  para a barra de status inferior. */
+export interface DocStats {
+	lines: number;
+	currentLine: number;
+	chars: number;
+	selectedChars: number;
+}
+
 export interface Tab {
 	path: string;
 	kind: FileKind;

@@ -1,5 +1,6 @@
 <script lang="ts">
 	import Icon from './Icon.svelte';
+	import { t } from './i18n.svelte';
 
 	let {
 		zoom,
@@ -15,24 +16,17 @@
 </script>
 
 <div class="zoom-controls">
-	<button onclick={onZoomOut} title="Diminuir zoom (Ctrl -)"><Icon name="remove" size={15} /></button>
-	<button class="level" onclick={onReset} title="Restaurar 100% (Ctrl 0)">{zoom}%</button>
-	<button onclick={onZoomIn} title="Aumentar zoom (Ctrl +)"><Icon name="add" size={15} /></button>
+	<button onclick={onZoomOut} title={t('zoom.decrease')}><Icon name="remove" size={13} /></button>
+	<button class="level" onclick={onReset} title={t('zoom.reset')}>{zoom}%</button>
+	<button onclick={onZoomIn} title={t('zoom.increase')}><Icon name="add" size={13} /></button>
 </div>
 
 <style>
 	.zoom-controls {
-		position: absolute;
-		right: 16px;
-		bottom: 16px;
 		display: flex;
-		align-items: stretch;
-		background: var(--surface);
-		border: 1px solid var(--border);
-		border-radius: 6px;
-		box-shadow: 0 2px 8px rgba(0, 0, 0, 0.14);
-		overflow: hidden;
-		z-index: 5;
+		align-items: center;
+		gap: 2px;
+		flex-shrink: 0;
 	}
 
 	.zoom-controls button {
@@ -41,21 +35,20 @@
 		justify-content: center;
 		border: none;
 		background: none;
-		color: var(--text);
-		padding: 6px 12px;
-		font-size: 13px;
-		line-height: 1.4;
+		color: var(--text-muted);
+		padding: 3px 6px;
+		font-size: 12px;
+		border-radius: 4px;
 		cursor: pointer;
 	}
 
 	.zoom-controls button:hover {
 		background: var(--hover);
+		color: var(--text);
 	}
 
 	.level {
-		min-width: 46px;
-		border-left: 1px solid var(--border);
-		border-right: 1px solid var(--border);
+		min-width: 38px;
 		font-variant-numeric: tabular-nums;
 	}
 </style>

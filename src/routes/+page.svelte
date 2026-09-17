@@ -3,6 +3,7 @@
 	import { invoke } from '@tauri-apps/api/core';
 	import { open, confirm } from '@tauri-apps/plugin-dialog';
 	import { WebviewWindow } from '@tauri-apps/api/webviewWindow';
+	import { getCurrentWindow } from '@tauri-apps/api/window';
 	import FileTree from '$lib/FileTree.svelte';
 	import MarkdownView from '$lib/MarkdownView.svelte';
 	import ImageView from '$lib/ImageView.svelte';
@@ -16,6 +17,7 @@
 	import ShortcutsModal from '$lib/ShortcutsModal.svelte';
 	import ThemeModal from '$lib/ThemeModal.svelte';
 	import ExportModal from '$lib/ExportModal.svelte';
+	import WindowControls from '$lib/WindowControls.svelte';
 	import Icon from '$lib/Icon.svelte';
 	import { kindForPath, parentDir, baseName, joinPath } from '$lib/paths';
 	import { settings, persistSettings } from '$lib/settings.svelte';
@@ -23,11 +25,9 @@
 	import { findTheme, applyThemeOverride } from '$lib/themes.svelte';
 	import { navigateWithArrows } from '$lib/keyboardNav';
 	import { consumePrintPayload } from '$lib/exportRunner';
-	import type { DirNode, Tab } from '$lib/types';
+	import { t, i18n } from '$lib/i18n.svelte';
+	import type { DirNode, DocStats, Tab } from '$lib/types';
 
-	// Janela "invisível" aberta só para imprimir o HTML exportado (ver
-	// ExportModal → PDF): sem árvore, sem abas, sem efeitos do app normal —
-	// só troca o documento inteiro pelo HTML recebido e chama window.print().
 	const isPrintMode = typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('print') === '1';
 
 	let rootDir = $state<string | null>(null);
@@ -50,6 +50,7 @@
 		| null;
 	let contextMenu = $state<{ x: number; y: number; node: DirNode | null } | null>(null);
 	let prompt = $state<PromptState>(null);
+	let rootDragOver = $state(false);
 
 	// Fixa (sempre visível) ou "automática" (desliza para fora ao tirar o
 	// mouse, volta ao encostar na borda) — o modo padrão vem das
@@ -77,6 +78,7 @@
 	// dispara comandos e espelha o percentual atual para os controles.
 	let imageViewRef = $state<{ zoomIn: () => void; zoomOut: () => void; zoomReset: () => void } | null>(null);
 	let imageZoomPercent = $state(100);
+	let docStats = $state<DocStats | null>(null);
 
 	let activeTab = $derived(activeTabIndex !== null ? tabs[activeTabIndex] : null);
 	// PDF usa o zoom do visualizador nativo — não exibimos nem controlamos.
@@ -103,7 +105,7 @@
 		}
 		const kind = kindForPath(path);
 		if (!kind) {
-			error = `Tipo de arquivo não suportado: ${path}`;
+			error = t('app.unsupportedFileType', { path });
 			return;
 		}
 		try {
@@ -160,10 +162,11 @@
 			url,
 			title: tab.path.split(/[\\/]/).pop() ?? 'MD Reader',
 			width: 900,
-			height: 700
+			height: 700,
+			decorations: false
 		});
 		win.once('tauri://error', (e) => {
-			error = `Falha ao abrir nova janela: ${String(e.payload)}`;
+			error = t('app.openWindowFailed', { error: String(e.payload) });
 		});
 	}
 
@@ -172,7 +175,7 @@
 		if (index === -1) return;
 		try {
 			await invoke('write_markdown_file', { path, content: newContent });
-			tabs[index] = { ...tabs[index], content: newContent };
+			tabs[index].content = newContent;
 		} catch (e) {
 			error = String(e);
 		}
@@ -202,27 +205,32 @@
 		const parent = contextMenuTargetDir(node);
 		const items: ComponentProps<typeof ContextMenu>['items'] = [
 			{
-				label: 'Nova pasta',
+				label: t('menu.newFolder'),
 				icon: 'folder',
 				onClick: () => (prompt = { kind: 'create-folder', parentPath: parent })
 			},
 			{
-				label: 'Novo arquivo markdown',
+				label: t('menu.newMarkdownFile'),
 				icon: 'description',
 				onClick: () => (prompt = { kind: 'create-file', parentPath: parent })
 			}
 		];
 		if (node) {
-			items.push({ label: 'Renomear', icon: 'edit', onClick: () => (prompt = { kind: 'rename', node }) });
-			items.push({ label: 'Excluir', icon: 'delete-outline', danger: true, onClick: () => deleteItem(node) });
+			items.push({ label: t('menu.rename'), icon: 'edit', onClick: () => (prompt = { kind: 'rename', node }) });
+			items.push({
+				label: t('menu.delete'),
+				icon: 'delete-outline',
+				danger: true,
+				onClick: () => deleteItem(node)
+			});
 		}
 		return items;
 	}
 
 	async function deleteItem(node: DirNode) {
-		const kindLabel = node.isDir ? 'a pasta' : 'o arquivo';
-		const ok = await confirm(`Enviar ${kindLabel} "${node.name}" para a lixeira?`, {
-			title: 'Excluir',
+		const kind = t(node.isDir ? 'menu.theFolder' : 'menu.theFile');
+		const ok = await confirm(t('menu.deleteConfirm', { kind, name: node.name }), {
+			title: t('menu.delete'),
 			kind: 'warning'
 		});
 		if (!ok || !rootDir) return;
@@ -279,6 +287,8 @@
 
 	async function moveItem(sourcePath: string, targetFolderPath: string) {
 		if (!rootDir) return;
+		const sep = targetFolderPath.includes('\\') ? '\\' : '/';
+		if (targetFolderPath === sourcePath || targetFolderPath.startsWith(sourcePath + sep)) return;
 		const newPath = joinPath(targetFolderPath, baseName(sourcePath));
 		if (newPath === sourcePath) return;
 		try {
@@ -293,6 +303,23 @@
 		} catch (e) {
 			error = String(e);
 		}
+	}
+
+	function onRootDragOver(e: DragEvent) {
+		e.preventDefault();
+		if (e.dataTransfer) e.dataTransfer.dropEffect = 'move';
+		rootDragOver = true;
+	}
+
+	function onRootDragLeave() {
+		rootDragOver = false;
+	}
+
+	async function onRootDrop(e: DragEvent) {
+		e.preventDefault();
+		rootDragOver = false;
+		const source = e.dataTransfer?.getData('text/plain');
+		if (source && rootDir) await moveItem(source, rootDir);
 	}
 
 	function setMarkdownZoom(value: number) {
@@ -314,6 +341,8 @@
 	}
 
 	function handleKeydown(e: KeyboardEvent) {
+		if (e.isComposing || e.keyCode === 229) return;
+
 		// O modal de atalhos está esperando uma combinação nova — não executa
 		// a ação antiga enquanto isso.
 		if (recordingState.active) return;
@@ -328,6 +357,8 @@
 				return;
 			}
 		}
+
+		if (!e.ctrlKey && !e.metaKey) return;
 
 		if (matchesShortcut(e, 'toggleSidebar')) {
 			e.preventDefault();
@@ -422,16 +453,14 @@
 			if (initial) {
 				await loadTree(initial);
 			}
-			if (queryFile) {
-				await openPath(queryFile);
+			const initialFile = queryFile ?? (await invoke<string | null>('get_initial_file'));
+			if (initialFile) {
+				await openPath(initialFile);
 			}
 			loading = false;
 		})();
 	});
 
-	// A troca de documento roda depois do mount (não durante a inicialização
-	// do componente), para o `document.write` substituir a página só depois
-	// que o Svelte já terminou de montar o pouco que essa janela renderiza.
 	$effect(() => {
 		if (!isPrintMode) return;
 		const html = consumePrintPayload();
@@ -448,20 +477,71 @@
 
 {#if !isPrintMode}
 <main>
-	<button
-		class="overflow-btn"
-		onclick={(e) => (overflowMenu = { x: e.clientX, y: e.clientY })}
-		title="Mais opções"
+	<div
+		class="titlebar"
+		role="presentation"
+		data-tauri-drag-region
+		ondblclick={() => getCurrentWindow().toggleMaximize()}
 	>
-		<Icon name="more-horiz" size={18} />
-	</button>
+		{#if rootDir}
+			<div
+				class="titlebar-sidebar"
+				class:drag-over={rootDragOver}
+				role="presentation"
+				data-tauri-drag-region
+				ondragover={onRootDragOver}
+				ondragleave={onRootDragLeave}
+				ondrop={onRootDrop}
+				title={t('app.dropToRoot')}
+			>
+				<button class="repo-name" onclick={pickFolder} title={t('app.changeFolderTooltip', { root: rootDir })}>
+					{rootDir.split(/[\\/]/).pop()}
+				</button>
+				<div class="sidebar-actions">
+					<button
+						class="icon-btn"
+						onclick={toggleSidebarMode}
+						title={t(settings.sidebarMode === 'fixed' ? 'app.unpinSidebar' : 'app.pinSidebar')}
+					>
+						<Icon name={settings.sidebarMode === 'fixed' ? 'push-pin-filled' : 'push-pin-outlined'} size={15} />
+					</button>
+					<button class="icon-btn" onclick={(e) => openContextMenu(null, e)} title={t('app.newFolderOrFile')}>
+						<Icon name="add" size={16} />
+					</button>
+				</div>
+			</div>
+		{/if}
 
+		<div class="titlebar-tabs" data-tauri-drag-region>
+			{#if tabs.length > 0}
+				<TabBar
+					{tabs}
+					activeIndex={activeTabIndex}
+					onActivate={(i) => (activeTabIndex = i)}
+					onClose={closeTab}
+					onReorder={reorderTabs}
+					onTearOff={tearOffTab}
+				/>
+			{/if}
+		</div>
+
+		<button
+			class="overflow-btn"
+			onclick={(e) => (overflowMenu = { x: e.clientX, y: e.clientY })}
+			title={t('app.moreOptions')}
+		>
+			<Icon name="more-horiz" size={18} />
+		</button>
+		<WindowControls />
+	</div>
+
+	<div class="app-body">
 	{#if loading}
-		<div class="empty">Carregando…</div>
+		<div class="empty">{t('app.loading')}</div>
 	{:else if !rootDir}
 		<div class="empty">
-			<p>Nenhuma pasta aberta.</p>
-			<button onclick={pickFolder}>Abrir pasta…</button>
+			<p>{t('app.noFolderOpen')}</p>
+			<button onclick={pickFolder}>{t('app.openFolder')}</button>
 		</div>
 	{:else}
 		{#if settings.sidebarMode === 'auto' && !sidebarVisible}
@@ -476,33 +556,18 @@
 			onmouseleave={onSidebarMouseLeave}
 			oncontextmenu={(e) => openContextMenu(null, e)}
 		>
-			<div class="sidebar-header">
-				<button class="repo-name" onclick={pickFolder} title={`${rootDir}\n\nClique para trocar de pasta`}>
-					{rootDir.split(/[\\/]/).pop()}
-				</button>
-				<div class="sidebar-actions">
-					<button
-						class="icon-btn"
-						onclick={toggleSidebarMode}
-						title={settings.sidebarMode === 'fixed'
-							? 'Ocultar automaticamente (Ctrl+B)'
-							: 'Fixar barra lateral (Ctrl+B)'}
-					>
-						<Icon name={settings.sidebarMode === 'fixed' ? 'push-pin-filled' : 'push-pin-outlined'} size={15} />
-					</button>
-					<button class="icon-btn" onclick={(e) => openContextMenu(null, e)} title="Nova pasta ou arquivo">
-						<Icon name="add" size={16} />
-					</button>
-				</div>
-			</div>
 			<div
 				class="tree-scroll"
+				class:drag-over={rootDragOver}
 				role="tree"
 				tabindex="-1"
 				onkeydown={(e) => navigateWithArrows(e, e.currentTarget as HTMLElement, '.entry')}
+				ondragover={onRootDragOver}
+				ondragleave={onRootDragLeave}
+				ondrop={onRootDrop}
 			>
 				{#if tree.length === 0}
-					<p class="empty-tree">Nenhum arquivo suportado encontrado.</p>
+					<p class="empty-tree">{t('app.noSupportedFiles')}</p>
 				{:else}
 					<FileTree
 						nodes={tree}
@@ -516,21 +581,6 @@
 		</aside>
 
 		<section class="content">
-			{#if tabs.length > 0}
-				<div class="content-topbar">
-					<TabBar
-						{tabs}
-						activeIndex={activeTabIndex}
-						onActivate={(i) => (activeTabIndex = i)}
-						onClose={closeTab}
-						onReorder={reorderTabs}
-						onTearOff={tearOffTab}
-					/>
-					<!-- Espaço reservado para o botão "..." flutuante nunca cobrir uma aba. -->
-					<div class="overflow-spacer"></div>
-				</div>
-			{/if}
-
 			{#if error}
 				<div class="error">{error}</div>
 			{/if}
@@ -546,6 +596,7 @@
 								zoom={tab.zoom}
 								onSave={(c) => saveByPath(tab.path, c)}
 								onNavigate={openPath}
+								onStats={(s) => (docStats = s)}
 							/>
 						{:else if tab.kind === 'image'}
 							<ImageView
@@ -557,15 +608,32 @@
 							<PdfView path={tab.path} />
 						{/if}
 					{/key}
-					{#if zoomable}
-						<ZoomControls zoom={Math.round(displayZoom)} onZoomIn={zoomIn} onZoomOut={zoomOut} onReset={zoomReset} />
-					{/if}
 				{:else}
-					<div class="empty">Selecione um arquivo na barra lateral.</div>
+					<div class="empty">{t('app.selectFile')}</div>
 				{/if}
 			</div>
+
+			{#if activeTab && zoomable}
+				<div class="status-bar">
+					<div class="status-stats">
+						{#if activeTab.kind === 'markdown' && docStats}
+							<span>{t('app.currentLine', { current: docStats.currentLine, total: docStats.lines })}</span>
+							<span class="sep">·</span>
+							<span>{t('app.characters', { count: docStats.chars.toLocaleString(i18n.locale) })}</span>
+							{#if docStats.selectedChars > 0}
+								<span class="sep">·</span>
+								<span class="selected">
+									{t('app.selectedCharacters', { count: docStats.selectedChars.toLocaleString(i18n.locale) })}
+								</span>
+							{/if}
+						{/if}
+					</div>
+					<ZoomControls zoom={Math.round(displayZoom)} onZoomIn={zoomIn} onZoomOut={zoomOut} onReset={zoomReset} />
+				</div>
+			{/if}
 		</section>
 	{/if}
+	</div>
 </main>
 
 {#if showHelp}
@@ -593,11 +661,11 @@
 		x={overflowMenu.x}
 		y={overflowMenu.y}
 		items={[
-			{ label: 'Exportar…', icon: 'download', onClick: () => (showExport = true) },
-			{ label: 'Tema', icon: 'palette', onClick: () => (showThemes = true) },
-			{ label: 'Configurações', icon: 'settings', onClick: () => (showSettings = true) },
-			{ label: 'Personalizar atalhos', icon: 'keyboard', onClick: () => (showShortcuts = true) },
-			{ label: 'Ajuda e atalhos', icon: 'help-outline', onClick: () => (showHelp = true) }
+			{ label: t('menu.export'), icon: 'download', onClick: () => (showExport = true) },
+			{ label: t('menu.theme'), icon: 'palette', onClick: () => (showThemes = true) },
+			{ label: t('menu.settings'), icon: 'settings', onClick: () => (showSettings = true) },
+			{ label: t('menu.customizeShortcuts'), icon: 'keyboard', onClick: () => (showShortcuts = true) },
+			{ label: t('menu.helpAndShortcuts'), icon: 'help-outline', onClick: () => (showHelp = true) }
 		]}
 		onClose={() => (overflowMenu = null)}
 	/>
@@ -615,28 +683,28 @@
 {#if prompt}
 	{#if prompt.kind === 'create-folder'}
 		<PromptModal
-			title="Nova pasta"
-			label="Nome da pasta"
-			initialValue="Nova pasta"
-			confirmLabel="Criar"
+			title={t('prompt.newFolderTitle')}
+			label={t('prompt.folderNameLabel')}
+			initialValue={t('prompt.newFolderDefault')}
+			confirmLabel={t('prompt.create')}
 			onConfirm={submitPrompt}
 			onCancel={() => (prompt = null)}
 		/>
 	{:else if prompt.kind === 'create-file'}
 		<PromptModal
-			title="Novo arquivo markdown"
-			label="Nome do arquivo"
-			initialValue="Novo arquivo.md"
-			confirmLabel="Criar"
+			title={t('prompt.newFileTitle')}
+			label={t('prompt.fileNameLabel')}
+			initialValue={t('prompt.newFileDefault')}
+			confirmLabel={t('prompt.create')}
 			onConfirm={submitPrompt}
 			onCancel={() => (prompt = null)}
 		/>
 	{:else if prompt.kind === 'rename'}
 		<PromptModal
-			title="Renomear"
-			label="Novo nome"
+			title={t('prompt.renameTitle')}
+			label={t('prompt.newNameLabel')}
 			initialValue={prompt.node.name}
-			confirmLabel="Renomear"
+			confirmLabel={t('menu.rename')}
 			onConfirm={submitPrompt}
 			onCancel={() => (prompt = null)}
 		/>
@@ -686,6 +754,10 @@
 		--danger: #f87171;
 	}
 
+	:global(*, *::before, *::after) {
+		box-sizing: border-box;
+	}
+
 	:global(html, body) {
 		margin: 0;
 		height: 100%;
@@ -697,26 +769,57 @@
 	}
 
 	main {
-		position: relative;
 		display: flex;
+		flex-direction: column;
 		height: 100vh;
 		width: 100%;
 	}
 
+	.titlebar {
+		display: flex;
+		align-items: stretch;
+		height: 36px;
+		flex-shrink: 0;
+		border-bottom: 1px solid var(--border);
+	}
+
+	.titlebar-sidebar {
+		box-sizing: border-box;
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+		width: 260px;
+		flex-shrink: 0;
+		padding: 0 12px;
+		font-size: 12px;
+		font-weight: 700;
+		text-transform: uppercase;
+		letter-spacing: 0.04em;
+		color: var(--text-muted);
+		border-right: 1px solid var(--border);
+	}
+
+	.titlebar-sidebar.drag-over,
+	.tree-scroll.drag-over {
+		box-shadow: inset 0 0 0 2px var(--accent);
+	}
+
+	.titlebar-tabs {
+		display: flex;
+		align-items: stretch;
+		flex: 1;
+		min-width: 0;
+	}
+
 	.overflow-btn {
-		position: absolute;
-		top: 4px;
-		right: 8px;
-		z-index: 30;
 		display: inline-flex;
 		align-items: center;
 		justify-content: center;
+		width: 44px;
 		border: none;
 		background: none;
 		color: var(--text-muted);
 		cursor: pointer;
-		padding: 5px;
-		border-radius: 4px;
 	}
 
 	.overflow-btn:hover {
@@ -724,16 +827,11 @@
 		color: var(--text);
 	}
 
-	.content-topbar {
+	.app-body {
+		position: relative;
+		flex: 1;
+		min-height: 0;
 		display: flex;
-		align-items: stretch;
-	}
-
-	.overflow-spacer {
-		width: 36px;
-		flex-shrink: 0;
-		border-bottom: 1px solid var(--border);
-		background: var(--surface);
 	}
 
 	.empty {
@@ -757,6 +855,7 @@
 	}
 
 	.sidebar {
+		box-sizing: border-box;
 		width: 260px;
 		flex-shrink: 0;
 		border-right: 1px solid var(--border);
@@ -795,19 +894,6 @@
 		left: 0;
 		width: 10px;
 		z-index: 19;
-	}
-
-	.sidebar-header {
-		display: flex;
-		align-items: center;
-		justify-content: space-between;
-		padding: 10px 12px;
-		font-size: 12px;
-		font-weight: 700;
-		text-transform: uppercase;
-		letter-spacing: 0.04em;
-		color: var(--text-muted);
-		border-bottom: 1px solid var(--border);
 	}
 
 	.repo-name {
@@ -881,5 +967,35 @@
 		color: var(--danger);
 		padding: 8px 14px;
 		font-size: 13px;
+	}
+
+	.status-bar {
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+		gap: 12px;
+		height: 26px;
+		padding: 0 10px 0 12px;
+		flex-shrink: 0;
+		font-size: 12px;
+		color: var(--text-muted);
+	}
+
+	.status-stats {
+		display: flex;
+		align-items: center;
+		gap: 6px;
+		min-width: 0;
+		overflow: hidden;
+		white-space: nowrap;
+		font-variant-numeric: tabular-nums;
+	}
+
+	.status-stats .sep {
+		opacity: 0.6;
+	}
+
+	.status-stats .selected {
+		color: var(--accent);
 	}
 </style>
