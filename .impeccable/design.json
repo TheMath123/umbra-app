@@ -1,0 +1,171 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-09-17T01:00:00.000Z",
+  "title": "Design System: MD Reader",
+  "extensions": {
+    "colorMeta": {
+      "accent": {
+        "role": "primary",
+        "displayName": "Indigo Focus",
+        "canonical": "#4f46e5",
+        "tonalRamp": ["#1e1b4b", "#312e81", "#3730a3", "#4338ca", "#4f46e5", "#6366f1", "#818cf8", "#a5b4fc"]
+      },
+      "bg": {
+        "role": "neutral",
+        "displayName": "Paper White",
+        "canonical": "#ffffff",
+        "tonalRamp": ["#1e1e22", "#3a3a3f", "#5a5a60", "#8a8a90", "#c4c4c8", "#e2e2e5", "#f4f4f5", "#ffffff"]
+      },
+      "surface": {
+        "role": "neutral",
+        "displayName": "Panel Gray",
+        "canonical": "#f4f4f5",
+        "tonalRamp": ["#29292e", "#3f3f45", "#5c5c62", "#8a8a90", "#b6b6bb", "#d6d6d9", "#ececef", "#f4f4f5"]
+      },
+      "border": {
+        "role": "neutral",
+        "displayName": "Hairline Border",
+        "canonical": "#e2e2e5",
+        "tonalRamp": ["#38383e", "#4c4c53", "#6b6b70", "#8e8e94", "#b4b4b9", "#d0d0d4", "#e2e2e5", "#f0f0f1"]
+      },
+      "text": {
+        "role": "neutral",
+        "displayName": "Ink",
+        "canonical": "#1a1a1e",
+        "tonalRamp": ["#1a1a1e", "#2c2c31", "#45454b", "#6b6b70", "#9a9aa0", "#c4c4c8", "#e2e2e5", "#f4f4f5"]
+      },
+      "text-muted": {
+        "role": "neutral",
+        "displayName": "Soft Ink",
+        "canonical": "#6b6b70",
+        "tonalRamp": ["#38383e", "#4c4c53", "#6b6b70", "#8e8e94", "#9a9aa0", "#b4b4b9", "#c4c4c8", "#d6d6d9"]
+      },
+      "hover": {
+        "role": "neutral",
+        "displayName": "Hover Wash",
+        "canonical": "#ececef",
+        "tonalRamp": ["#333338", "#45454b", "#5c5c62", "#8a8a90", "#b6b6bb", "#d6d6d9", "#ececef", "#f4f4f5"]
+      },
+      "danger": {
+        "role": "danger",
+        "displayName": "Signal Red",
+        "canonical": "#dc2626",
+        "tonalRamp": ["#7f1d1d", "#991b1b", "#b91c1c", "#dc2626", "#ef4444", "#f87171", "#fca5a5", "#fecaca"]
+      }
+    },
+    "typographyMeta": {
+      "display": { "displayName": "Display / H1", "purpose": "Título de nível 1 no documento renderizado." },
+      "headline": { "displayName": "Headline / H2", "purpose": "Título de nível 2." },
+      "title": { "displayName": "Title / H3-H4", "purpose": "Títulos de nível 3 e 4." },
+      "body": { "displayName": "Body", "purpose": "Corpo do documento markdown; família, tamanho e espaçamento ajustáveis pelo usuário." },
+      "label": { "displayName": "Label", "purpose": "Cabeçalhos de seção em maiúsculas (sidebar, modais)." },
+      "caption": { "displayName": "Caption", "purpose": "Texto de apoio — descrições, dicas de rodapé, valores de slider, badge de status." },
+      "control": { "displayName": "Control", "purpose": "Texto de controles interativos — itens de árvore, itens de menu, botões de texto." },
+      "mono": { "displayName": "Mono / Code", "purpose": "Código inline e em bloco, task lists, atalhos de teclado." }
+    },
+    "shadows": [
+      { "name": "overlay-dim", "value": "rgba(0, 0, 0, 0.4)", "purpose": "Pano de fundo por trás de qualquer modal." },
+      { "name": "modal-elevation", "value": "0 8px 24px rgba(0, 0, 0, 0.18)", "purpose": "Diálogos modais (Configurações, Temas, Atalhos, Ajuda) — discreta, à la Typora/Zed, não uma sombra de marketing." },
+      { "name": "context-menu-elevation", "value": "0 6px 20px rgba(0, 0, 0, 0.16)", "purpose": "Menu de clique direito da árvore de arquivos." },
+      { "name": "floating-controls-elevation", "value": "0 2px 8px rgba(0, 0, 0, 0.14)", "purpose": "Controles de zoom sobre imagem/PDF." },
+      { "name": "auto-hide-sidebar-elevation", "value": "2px 0 10px rgba(0, 0, 0, 0.14)", "purpose": "Sidebar em modo automático, só enquanto aberta sobre o conteúdo." }
+    ],
+    "motion": [
+      { "name": "sidebar-slide", "value": "transform 0.18s ease", "purpose": "Entrada/saída da sidebar em modo automático (translateX)." }
+    ],
+    "breakpoints": []
+  },
+  "components": [
+    {
+      "name": "Botão Primário",
+      "kind": "button",
+      "refersTo": "button-primary",
+      "description": "Ação principal de uma tela vazia (ex. \"Abrir pasta\").",
+      "html": "<button class=\"ds-btn-primary\">Abrir pasta</button>",
+      "css": ".ds-btn-primary { border: 1px solid #e2e2e5; background: #4f46e5; color: #ffffff; border-radius: 4px; padding: 8px 16px; font-size: 14px; cursor: pointer; transition: opacity 0.15s; } .ds-btn-primary:hover { opacity: 0.92; }"
+    },
+    {
+      "name": "Botão Ghost (ícone)",
+      "kind": "button",
+      "refersTo": "button-ghost",
+      "description": "Padrão dominante do app: fechar modal, editar, excluir, ícones de ação da árvore.",
+      "html": "<button class=\"ds-btn-ghost\" aria-label=\"Fechar\">✕</button>",
+      "css": ".ds-btn-ghost { display: inline-flex; align-items: center; justify-content: center; border: none; background: none; color: #6b6b70; padding: 6px; border-radius: 4px; cursor: pointer; } .ds-btn-ghost:hover { background: #ececef; color: #1a1a1e; } .ds-btn-ghost:focus-visible { outline: 2px solid #4f46e5; outline-offset: 1px; }"
+    },
+    {
+      "name": "Grupo Segmentado",
+      "kind": "input",
+      "refersTo": "segmented-option-active",
+      "description": "Escolha entre 3-4 opções mutuamente exclusivas (fonte, largura, espaçamento).",
+      "html": "<div class=\"ds-segmented\" role=\"toolbar\"><button class=\"active\">Normal</button><button>Larga</button><button>Tela cheia</button></div>",
+      "css": ".ds-segmented { display: flex; border: 1px solid #e2e2e5; border-radius: 4px; overflow: hidden; } .ds-segmented button { border: none; background: #f4f4f5; color: #6b6b70; font-size: 12px; padding: 6px 11px; cursor: pointer; border-left: 1px solid #e2e2e5; } .ds-segmented button:first-child { border-left: none; } .ds-segmented button:hover { background: #ececef; } .ds-segmented button.active { background: #4f46e5; color: #ffffff; }"
+    },
+    {
+      "name": "Linha da Árvore de Arquivos",
+      "kind": "nav",
+      "refersTo": "tree-row-selected",
+      "description": "Item de arquivo/pasta na sidebar; selecionado vira fundo sólido, não apenas uma borda.",
+      "html": "<button class=\"ds-tree-row selected\">📄 campanha.md</button>",
+      "css": ".ds-tree-row { display: flex; align-items: center; gap: 6px; width: 100%; border: none; background: none; padding: 4px 8px 4px 10px; font-size: 13px; text-align: left; cursor: pointer; color: #1a1a1e; border-radius: 4px; } .ds-tree-row:hover { background: #ececef; } .ds-tree-row.selected { background: #4f46e5; color: #ffffff; }"
+    },
+    {
+      "name": "Aba (Tab)",
+      "kind": "nav",
+      "refersTo": "tab",
+      "description": "Aba de arquivo aberto; a ativa ganha barra inferior de 2px na cor de destaque.",
+      "html": "<div class=\"ds-tab active\"><span>notas.md</span><button aria-label=\"Fechar\">✕</button></div>",
+      "css": ".ds-tab { display: flex; align-items: center; gap: 8px; padding: 0 8px 0 14px; height: 36px; font-size: 13px; border-right: 1px solid #e2e2e5; color: #6b6b70; position: relative; cursor: pointer; } .ds-tab.active { color: #1a1a1e; background: #ffffff; } .ds-tab.active::after { content: ''; position: absolute; left: 0; right: 0; bottom: -1px; height: 2px; background: #4f46e5; }"
+    },
+    {
+      "name": "Badge de Status",
+      "kind": "custom",
+      "refersTo": "status-badge",
+      "description": "Indicador flutuante de \"Salvando…/Salvo\" sobre o editor, na mesma escala de raio dos demais componentes pequenos.",
+      "html": "<span class=\"ds-status-badge\">Salvo</span>",
+      "css": ".ds-status-badge { display: inline-block; color: #6b6b70; font-size: 12px; background: #f4f4f5; border: 1px solid #e2e2e5; border-radius: 4px; padding: 2px 10px; }"
+    },
+    {
+      "name": "Diálogo Modal",
+      "kind": "card",
+      "refersTo": "modal",
+      "description": "Configurações, Temas, Atalhos, Ajuda — mesma estrutura header/body/footer.",
+      "html": "<div class=\"ds-modal\"><div class=\"ds-modal-header\"><h2>Configurações</h2><button aria-label=\"Fechar\">✕</button></div><div class=\"ds-modal-body\">Conteúdo</div></div>",
+      "css": ".ds-modal { background: #ffffff; border: 1px solid #e2e2e5; border-radius: 8px; box-shadow: 0 8px 24px rgba(0,0,0,0.18); width: min(460px, calc(100vw - 32px)); } .ds-modal-header { display: flex; align-items: center; justify-content: space-between; padding: 16px 20px; border-bottom: 1px solid #e2e2e5; } .ds-modal-header h2 { font-size: 15px; margin: 0; } .ds-modal-body { padding: 4px 20px 8px; overflow-y: auto; overflow-x: hidden; }"
+    }
+  ],
+  "narrative": {
+    "northStar": "The Focused Workbench",
+    "overview": "MD Reader é uma bancada de trabalho enxuta, não uma vitrine. A interface parte do princípio de que o documento markdown é o único protagonista: cromo é reduzido ao mínimo funcional, cor é usada apenas para dizer \"isto está ativo, selecionado ou clicável\", e qualquer controle que não seja necessário na maior parte do tempo (configurações, atalhos, temas, zoom) fica escondido atrás de um gatilho discreto até ser chamado. É a estética de um editor de código bem calibrado (VSCode, Sublime) aplicada à leitura e escrita de prosa, não a estética de um produto de marketing.\n\nA superfície é quase inteiramente plana — divisórias são feitas com bordas de 1px, não com sombra — e ganha profundidade apenas quando algo literalmente flutua sobre o conteúdo (um modal, um menu de contexto, os controles de zoom). Isso não é ausência de acabamento; é a regra confirmada do sistema. A tipografia segue o mesmo raciocínio: hierarquia vem de peso e tamanho, nunca de decoração, e o próprio corpo do texto pode ser inteiramente reconfigurado pelo usuário — o sistema visual existe para servir a leitura de quem está usando, não para impor uma identidade fixa de marca.",
+    "keyCharacteristics": [
+      "Plano por padrão; sombra é reservada para o que flutua sobre o conteúdo.",
+      "Cor é funcional, não decorativa: a cor de destaque (indigo) só aparece em elementos ativos/selecionados/clicáveis.",
+      "Hierarquia por peso e tamanho tipográfico, nunca por ornamento.",
+      "Todo o sistema de cor é literalmente trocável em tempo real pelo usuário (temas).",
+      "Navegação por teclado (setas, Enter, Espaço, foco visível) é parte do sistema visual, não um adendo de acessibilidade."
+    ],
+    "rules": [
+      { "name": "The Single Accent Rule", "body": "Existe exatamente uma cor de destaque ativa por vez. Ela nunca compete com uma segunda cor \"de marca\" fixa.", "section": "colors" },
+      { "name": "The Border-Not-Shadow Rule", "body": "Separação entre superfícies fixas é sempre 1px solid var(--border), nunca box-shadow.", "section": "colors" },
+      { "name": "The Reader's Choice Rule", "body": "Família tipográfica, tamanho, largura de coluna e espaçamento entre linhas do corpo do documento são propriedade do leitor, não do sistema.", "section": "typography" },
+      { "name": "The Single Scroll Rule", "body": "Nenhum contêiner tem dois eixos de scroll simultâneos nem scroll aninhado; sempre overflow-x: hidden explícito ao lado de overflow-y: auto.", "section": "layout" },
+      { "name": "The Floating-Only Shadow Rule", "body": "Se um elemento está sempre presente no layout, ele não tem sombra. Sombra é exclusiva de elementos flutuantes.", "section": "elevation" },
+      { "name": "The Light Radius Rule", "body": "Nenhum botão fica com chrome nativo do SO, e nenhum elemento ganha raio pill — o raio cresce em passos pequenos (3→4→6→8px) conforme a hierarquia do elemento.", "section": "shapes" },
+      { "name": "The No Pill Rule", "body": "Zero componentes pill/cápsula em toda a interface, incluindo indicadores de status. Um raio pequeno e consistente substitui qualquer forma totalmente arredondada.", "section": "shapes" }
+    ],
+    "dos": [
+      "Do usar borda de 1px (var(--border)) para separar qualquer superfície fixa da interface.",
+      "Do reservar box-shadow só para o que literalmente flutua sobre o conteúdo (modal, menu de contexto, controles de zoom, sidebar automática aberta).",
+      "Do manter o raio de canto na escala 4/6/8/10px conforme a hierarquia do elemento — nunca pill, exceto o badge de status.",
+      "Do resetar completamente o chrome nativo de qualquer <button> antes de aplicar o estilo do tema.",
+      "Do expor variação de fonte, tamanho, largura de coluna e espaçamento do corpo do documento como preferência do usuário.",
+      "Do dar a todo componente interativo novo navegação por setas + confirmação por Enter/Espaço, com foco inicial já no item relevante."
+    ],
+    "donts": [
+      "Don't adicionar sombra a um componente que está sempre presente no layout.",
+      "Don't usar uma segunda cor \"de marca\" fixa além do accent do tema ativo.",
+      "Don't reintroduzir edição \"bloco a bloco\" com inputs que substituem o texto renderizado.",
+      "Don't deixar dois eixos de scroll competindo no mesmo contêiner.",
+      "Don't usar itálico, tracking exagerado ou fontes decorativas para hierarquia."
+    ]
+  }
+}
