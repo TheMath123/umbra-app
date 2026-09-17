@@ -8,6 +8,10 @@
     "opener:default",
     "dialog:default",
     "core:webview:allow-create-webview-window",
-    "clipboard-manager:allow-write-text"
+    "clipboard-manager:allow-write-text",
+    "core:window:allow-close",
+    "core:window:allow-minimize",
+    "core:window:allow-toggle-maximize",
+    "core:window:allow-start-dragging"
   ]
 }
