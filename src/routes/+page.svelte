@@ -758,6 +758,38 @@
 		box-sizing: border-box;
 	}
 
+	/* Scrollbar minimalista em toda a aplicação — fina, sem setas, some no
+	 * fundo até ter algo pra rolar (a cor só aparece na "trilha", nunca um
+	 * bloco cinza chapado como o padrão do sistema). */
+	:global(*) {
+		scrollbar-width: thin;
+		scrollbar-color: var(--border) transparent;
+	}
+
+	:global(::-webkit-scrollbar) {
+		width: 10px;
+		height: 10px;
+	}
+
+	:global(::-webkit-scrollbar-track) {
+		background: transparent;
+	}
+
+	:global(::-webkit-scrollbar-thumb) {
+		background-color: var(--border);
+		background-clip: padding-box;
+		border: 2px solid transparent;
+		border-radius: 100px;
+	}
+
+	:global(::-webkit-scrollbar-thumb:hover) {
+		background-color: var(--text-muted);
+	}
+
+	:global(::-webkit-scrollbar-corner) {
+		background: transparent;
+	}
+
 	:global(html, body) {
 		margin: 0;
 		height: 100%;

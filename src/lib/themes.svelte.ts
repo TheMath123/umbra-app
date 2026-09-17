@@ -208,6 +208,40 @@ export function isCustomTheme(id: string): boolean {
 	return customThemes.some((t) => t.id === id);
 }
 
+function relativeLuminance(r: number, g: number, b: number): number {
+	const [rs, gs, bs] = [r, g, b].map((c) => {
+		const v = c / 255;
+		return v <= 0.03928 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4);
+	});
+	return 0.2126 * rs + 0.7152 * gs + 0.0722 * bs;
+}
+
+/** Usa o próprio parser de cor do navegador (aceita hex, rgb(), hsl(), nomes
+ *  de cor — tudo que THEMES.md permite) em vez de reimplementar um parser. */
+function parseColorLuminance(color: string): number | null {
+	if (typeof document === 'undefined') return null;
+	const probe = document.createElement('div');
+	probe.style.color = color;
+	document.body.appendChild(probe);
+	const computed = getComputedStyle(probe).color;
+	document.body.removeChild(probe);
+	const match = computed.match(/rgba?\((\d+),\s*(\d+),\s*(\d+)/);
+	if (!match) return null;
+	return relativeLuminance(Number(match[1]), Number(match[2]), Number(match[3]));
+}
+
+/** Se o tema ativo é escuro — usado para escolher a paleta de destaque de
+ *  sintaxe do highlight de código (que não faz parte das 9 cores do tema,
+ *  ver codeSyntax.ts). "system" segue a preferência do SO. */
+export function isDarkThemeActive(themeId: string): boolean {
+	if (themeId === 'system') {
+		return typeof window !== 'undefined' && !!window.matchMedia?.('(prefers-color-scheme: dark)').matches;
+	}
+	const bg = findTheme(themeId)?.colors.bg ?? DARK_THEME.colors.bg;
+	const luminance = parseColorLuminance(bg);
+	return luminance === null ? true : luminance < 0.5;
+}
+
 /** `key`/`params` são a chave de tradução (ver `i18n.svelte.ts`) e seus
  *  parâmetros — quem exibe o erro (ThemeModal) é quem chama `t()`, para o
  *  texto respeitar o idioma ativo no momento em que aparece na tela. */

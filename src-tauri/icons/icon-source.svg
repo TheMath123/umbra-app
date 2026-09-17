@@ -1,9 +1,5 @@
 <svg viewBox="0 0 1024 1024" xmlns="http://www.w3.org/2000/svg">
   <defs>
-    <linearGradient id="bg" x1="0" y1="0" x2="1024" y2="1024" gradientUnits="userSpaceOnUse">
-      <stop offset="0" stop-color="#181325"/>
-      <stop offset="1" stop-color="#0a0912"/>
-    </linearGradient>
     <linearGradient id="corona" x1="230" y1="230" x2="794" y2="794" gradientUnits="userSpaceOnUse">
       <stop offset="0" stop-color="#d8b4fe"/>
       <stop offset="0.45" stop-color="#a855f7"/>
@@ -18,9 +14,7 @@
     </filter>
   </defs>
 
-  <rect x="0" y="0" width="1024" height="1024" rx="200" fill="url(#bg)"/>
+  <circle cx="512" cy="512" r="360" fill="url(#corona)" filter="url(#glow)"/>
 
-  <circle cx="512" cy="512" r="282" fill="url(#corona)" filter="url(#glow)"/>
-
-  <circle cx="580" cy="468" r="282" fill="#0e0b16"/>
+  <circle cx="599" cy="456" r="360" fill="#0e0b16"/>
 </svg>

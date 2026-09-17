@@ -8,11 +8,13 @@
 	import type { EditorState as EditorStateType } from '@codemirror/state';
 	import { markdown, markdownKeymap } from '@codemirror/lang-markdown';
 	import { GFM } from '@lezer/markdown';
-	import { syntaxTree } from '@codemirror/language';
+	import { syntaxTree, syntaxHighlighting } from '@codemirror/language';
 	import type { SyntaxNode } from '@lezer/common';
 	import { defaultKeymap, history, historyKeymap, indentWithTab } from '@codemirror/commands';
 	import { isExternalLink, resolveRelativePath } from './paths';
 	import { settings, FONT_STACKS, LINE_HEIGHTS, CONTENT_WIDTHS } from './settings.svelte';
+	import { isDarkThemeActive } from './themes.svelte';
+	import { codeLanguages, highlightStyleFor } from './codeSyntax';
 	import { t } from './i18n.svelte';
 	import type { DocStats } from './types';
 
@@ -313,15 +315,20 @@
 					case 'FencedCode': {
 						const firstLine = state.doc.lineAt(node.from);
 						const lastLine = state.doc.lineAt(node.to);
+						const focused = overlaps(state, node.from, node.to);
+						// O fundo/borda da caixa cobre sempre as mesmas linhas (a cerca
+						// de abertura/fechamento incluída) — só o TEXTO da cerca some
+						// quando não focado, igual aos outros marcadores (**, #, ...).
+						// Nada de Decoration.replace com block:true aqui: isso "engolia"
+						// a linha inteira e derrubava junto a decoração de fundo dela.
 						for (let n = firstLine.number; n <= lastLine.number; n++) {
 							push(state.doc.line(n).from, state.doc.line(n).from, Decoration.line({ class: 'cm-md-code-line' }));
 						}
-						if (!overlaps(state, node.from, node.to) && firstLine.number !== lastLine.number) {
-							// Esconde a cerca de abertura (``` + linguagem) e a de fechamento —
-							// sobra só o código, como um bloco visual, igual ao Typora.
-							const afterOpenLine = state.doc.line(firstLine.number + 1).from;
-							hide(firstLine.from, afterOpenLine, true);
-							hide(lastLine.from, lastLine.to, true);
+						push(firstLine.from, firstLine.from, Decoration.line({ class: 'cm-md-code-first' }));
+						push(lastLine.from, lastLine.from, Decoration.line({ class: 'cm-md-code-last' }));
+						if (!focused && firstLine.number !== lastLine.number) {
+							hide(firstLine.from, firstLine.to);
+							hide(lastLine.from, lastLine.to);
 						}
 						break;
 					}
@@ -429,6 +436,10 @@
 	// real (configurações) sem recriar o editor — preserva cursor, seleção
 	// e histórico de undo/redo.
 	const fontCompartment = new Compartment();
+	// A paleta do highlight de sintaxe é fixa (claro/escuro), não uma das 9
+	// cores do tema — precisa reconfigurar quando o tema muda de claro pra
+	// escuro (ou vice-versa), incluindo o modo "Sistema".
+	const highlightCompartment = new Compartment();
 
 	function buildEditorTheme() {
 		return EditorView.theme({
@@ -497,10 +508,11 @@
 				extensions: [
 					history(),
 					keymap.of([...markdownKeymap, indentWithTab, ...defaultKeymap, ...historyKeymap]),
-					markdown({ extensions: GFM }),
+					markdown({ extensions: GFM, codeLanguages }),
 					livePreviewField(basePath),
 					EditorView.lineWrapping,
 					fontCompartment.of(buildEditorTheme()),
+					highlightCompartment.of(syntaxHighlighting(highlightStyleFor(isDarkThemeActive(settings.themeId)))),
 					EditorView.updateListener.of((u) => {
 						if (u.docChanged) scheduleSave();
 						if (u.docChanged || u.selectionSet) scheduleStats();
@@ -531,6 +543,32 @@
 		settings.fontSize;
 		settings.lineHeight;
 		view?.dispatch({ effects: fontCompartment.reconfigure(buildEditorTheme()) });
+	});
+
+	function reconfigureHighlight() {
+		view?.dispatch({
+			effects: highlightCompartment.reconfigure(
+				syntaxHighlighting(highlightStyleFor(isDarkThemeActive(settings.themeId)))
+			)
+		});
+	}
+
+	$effect(() => {
+		settings.themeId;
+		reconfigureHighlight();
+	});
+
+	// No modo "Sistema" o claro/escuro depende do SO, não de `settings` —
+	// escuta a mudança diretamente pra recolorir o highlight sem precisar
+	// trocar de aba/reabrir o arquivo.
+	$effect(() => {
+		if (typeof window === 'undefined' || !window.matchMedia) return;
+		const media = window.matchMedia('(prefers-color-scheme: dark)');
+		const onChange = () => {
+			if (settings.themeId === 'system') reconfigureHighlight();
+		};
+		media.addEventListener('change', onChange);
+		return () => media.removeEventListener('change', onChange);
 	});
 
 	function onBodyClick(e: MouseEvent) {
@@ -688,9 +726,26 @@
 
 	:global(.cm-md-code-line) {
 		background: var(--surface);
+		border-left: 1px solid var(--border);
+		border-right: 1px solid var(--border);
+		padding: 0.15em 14px !important;
 		font-family:
 			ui-monospace, SFMono-Regular, Consolas, 'Liberation Mono', Menlo, monospace;
 		font-size: 0.9em;
+	}
+
+	:global(.cm-md-code-first) {
+		border-top: 1px solid var(--border);
+		border-top-left-radius: 6px;
+		border-top-right-radius: 6px;
+		padding-top: 0.6em !important;
+	}
+
+	:global(.cm-md-code-last) {
+		border-bottom: 1px solid var(--border);
+		border-bottom-left-radius: 6px;
+		border-bottom-right-radius: 6px;
+		padding-bottom: 0.6em !important;
 	}
 
 	:global(.cm-md-image) {

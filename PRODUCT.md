@@ -56,7 +56,7 @@ Mecanismo que um vizinho direto não copia com a mesma verdade:
 
 - Nome: **Umbra** (antes "MD Reader" — renomeado em 2026-09-17; pesquisa de nomes concluiu que "MD Reader"/variações óbvias de roxo e espaço já eram usadas por outros apps de markdown/notas, ver histórico da conversa).
 - Identificador de bundle: `com.matheuspa.umbra`.
-- Ícone: eclipse — disco escuro cobrindo um halo em degradê roxo→índigo (`#d8b4fe → #a855f7 → #4f46e5`), sobre fundo quase preto, remetendo ao nome (umbra = sombra mais escura de um eclipse) e à paleta de cor do app (tema Bearded Black & Amethyst). Fonte em `src-tauri/icons/icon-source.svg`.
+- Ícone: eclipse — disco escuro cobrindo um halo em degradê roxo→índigo (`#d8b4fe → #a855f7 → #4f46e5`), sem fundo (fundo transparente, só a forma do eclipse), remetendo ao nome (umbra = sombra mais escura de um eclipse) e à paleta de cor do app (tema Bearded Black & Amethyst). Fonte em `src-tauri/icons/icon-source.svg`.
 - Licença: MIT.
 
 ## Evidence on Hand

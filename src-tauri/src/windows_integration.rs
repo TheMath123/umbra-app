@@ -9,6 +9,7 @@
 use std::env;
 use winreg::enums::*;
 use winreg::RegKey;
+use windows::Win32::UI::Shell::{SHChangeNotify, SHCNE_ASSOCCHANGED, SHCNF_IDLIST};
 
 const CONTEXT_MENU_LABEL: &str = "Abrir com Umbra";
 const PROG_ID: &str = "Umbra.md";
@@ -21,6 +22,15 @@ fn exe_path() -> Result<String, String> {
 
 fn classes_root() -> RegKey {
     RegKey::predef(HKEY_CURRENT_USER)
+}
+
+/// Avisa o Explorer que associações de arquivo/menu de contexto mudaram —
+/// sem isso, o Windows mantém o cache antigo (nem o "Abrir com" nem a lista
+/// de apps padrão em Configurações refletem a mudança até um logoff).
+fn notify_shell_changed() {
+    unsafe {
+        SHChangeNotify(SHCNE_ASSOCCHANGED, SHCNF_IDLIST, None, None);
+    }
 }
 
 // --- Menu de contexto em pastas ----------------------------------------
@@ -51,6 +61,7 @@ pub fn set_context_menu(enabled: bool) -> Result<(), String> {
             let _ = hkcu.delete_subkey_all(&full);
         }
     }
+    notify_shell_changed();
     Ok(())
 }
 
@@ -87,6 +98,7 @@ pub fn set_file_association(enabled: bool) -> Result<(), String> {
         }
         let _ = hkcu.delete_subkey_all(format!("Software\\Classes\\{PROG_ID}"));
     }
+    notify_shell_changed();
     Ok(())
 }
 
