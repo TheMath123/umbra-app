@@ -13,19 +13,23 @@
 	import { defaultKeymap, history, historyKeymap, indentWithTab } from '@codemirror/commands';
 	import { isExternalLink, resolveRelativePath } from './paths';
 	import { settings, FONT_STACKS, LINE_HEIGHTS, CONTENT_WIDTHS } from './settings.svelte';
+	import { t } from './i18n.svelte';
+	import type { DocStats } from './types';
 
 	let {
 		path,
 		content,
 		zoom = 100,
 		onSave,
-		onNavigate
+		onNavigate,
+		onStats
 	}: {
 		path: string;
 		content: string;
 		zoom?: number;
 		onSave: (newContent: string) => Promise<void> | void;
 		onNavigate?: (path: string) => void;
+		onStats?: (stats: DocStats) => void;
 	} = $props();
 
 	let editorHost = $state<HTMLDivElement | null>(null);
@@ -395,8 +399,9 @@
 	function linkClickHandler(basePath: string) {
 		return (e: MouseEvent, editorView: EditorView) => {
 			if (e.ctrlKey || e.metaKey) return false;
-			const pos = editorView.posAtCoords({ x: e.clientX, y: e.clientY });
-			if (pos == null) return false;
+			const target = e.target instanceof Element ? e.target.closest('.cm-md-link, .cm-md-image') : null;
+			if (!target) return false;
+			const pos = editorView.posAtDOM(target, 0);
 			const node = linkNodeAt(editorView, pos);
 			if (!node) return false;
 			const urlNode = node.name === 'URL' ? node : node.node.getChild('URL');
@@ -444,17 +449,40 @@
 		clearTimeout(saveTimer);
 		saveTimer = setTimeout(async () => {
 			if (!view) return;
+			const hadFocus = view.hasFocus;
 			saving = true;
 			try {
 				await onSave(view.state.doc.toString());
 			} finally {
 				saving = false;
+				if (hadFocus && view && !view.hasFocus) view.focus();
 			}
 		}, 500);
 	}
 
+	function computeStats(state: EditorStateType): DocStats {
+		const doc = state.doc;
+		let selectedChars = 0;
+		for (const range of state.selection.ranges) selectedChars += range.to - range.from;
+		return {
+			lines: doc.lines,
+			currentLine: doc.lineAt(state.selection.main.head).number,
+			chars: doc.length,
+			selectedChars
+		};
+	}
+
+	let statsRaf = 0;
+	function scheduleStats() {
+		cancelAnimationFrame(statsRaf);
+		statsRaf = requestAnimationFrame(() => {
+			if (view) onStats?.(computeStats(view.state));
+		});
+	}
+
 	function destroyEditor() {
 		clearTimeout(saveTimer);
+		cancelAnimationFrame(statsRaf);
 		view?.destroy();
 		view = null;
 	}
@@ -475,11 +503,13 @@
 					fontCompartment.of(buildEditorTheme()),
 					EditorView.updateListener.of((u) => {
 						if (u.docChanged) scheduleSave();
+						if (u.docChanged || u.selectionSet) scheduleStats();
 					}),
 					EditorView.domEventHandlers({ mousedown: linkClickHandler(basePath) })
 				]
 			})
 		});
+		onStats?.(computeStats(view.state));
 	}
 
 	$effect(() => {
@@ -502,13 +532,20 @@
 		settings.lineHeight;
 		view?.dispatch({ effects: fontCompartment.reconfigure(buildEditorTheme()) });
 	});
+
+	function onBodyClick(e: MouseEvent) {
+		if (!view) return;
+		if ((e.target as HTMLElement)?.closest('.cm-editor')) return;
+		view.focus();
+		view.dispatch({ selection: { anchor: view.state.doc.length } });
+	}
 </script>
 
 <svelte:window onkeydown={onWindowKeydown} onkeyup={onWindowKeyup} onblur={onWindowBlur} />
 
 <div class="view">
-	{#if saving}<span class="status">Salvando…</span>{/if}
-	<div class="body">
+	<span class="status" hidden={!saving}>{t('editor.saving')}</span>
+	<div class="body" onclick={onBodyClick} onkeydown={() => {}} role="presentation">
 		<div
 			class="doc-host"
 			style="zoom: {zoom}%; max-width: {CONTENT_WIDTHS[settings.contentWidth]};"

@@ -10,20 +10,21 @@ export type CommandId =
 
 export interface ShortcutDef {
 	id: CommandId;
-	label: string;
+	/** Chave de tradução (não o texto em si — ver `i18n.svelte.ts`). */
+	labelKey: string;
 	default: string;
 }
 
 /** Ordem em que aparecem no modal de configuração. */
 export const SHORTCUT_DEFS: ShortcutDef[] = [
-	{ id: 'toggleHelp', label: 'Abrir ajuda', default: '?' },
-	{ id: 'toggleSidebar', label: 'Fixar/ocultar barra lateral', default: 'Ctrl+B' },
-	{ id: 'nextTab', label: 'Próxima aba', default: 'Ctrl+Tab' },
-	{ id: 'prevTab', label: 'Aba anterior', default: 'Ctrl+Shift+Tab' },
-	{ id: 'closeTab', label: 'Fechar aba', default: 'Ctrl+W' },
-	{ id: 'zoomIn', label: 'Aumentar zoom', default: 'Ctrl+=' },
-	{ id: 'zoomOut', label: 'Diminuir zoom', default: 'Ctrl+-' },
-	{ id: 'zoomReset', label: 'Restaurar zoom', default: 'Ctrl+0' }
+	{ id: 'toggleHelp', labelKey: 'shortcuts.cmd.toggleHelp', default: '?' },
+	{ id: 'toggleSidebar', labelKey: 'shortcuts.cmd.toggleSidebar', default: 'Ctrl+\\' },
+	{ id: 'nextTab', labelKey: 'shortcuts.cmd.nextTab', default: 'Ctrl+Tab' },
+	{ id: 'prevTab', labelKey: 'shortcuts.cmd.prevTab', default: 'Ctrl+Shift+Tab' },
+	{ id: 'closeTab', labelKey: 'shortcuts.cmd.closeTab', default: 'Ctrl+W' },
+	{ id: 'zoomIn', labelKey: 'shortcuts.cmd.zoomIn', default: 'Ctrl+=' },
+	{ id: 'zoomOut', labelKey: 'shortcuts.cmd.zoomOut', default: 'Ctrl+-' },
+	{ id: 'zoomReset', labelKey: 'shortcuts.cmd.zoomReset', default: 'Ctrl+0' }
 ];
 
 const DEFAULT_SHORTCUTS = Object.fromEntries(SHORTCUT_DEFS.map((d) => [d.id, d.default])) as Record<

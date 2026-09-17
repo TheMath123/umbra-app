@@ -40,11 +40,18 @@
 
 	function onDragOverFolder(e: DragEvent, node: DirNode) {
 		e.preventDefault();
+		e.stopPropagation();
+		if (e.dataTransfer) e.dataTransfer.dropEffect = 'move';
 		dragOverPath = node.path;
+	}
+
+	function onDragLeaveFolder(node: DirNode) {
+		if (dragOverPath === node.path) dragOverPath = null;
 	}
 
 	function onDropOnFolder(e: DragEvent, node: DirNode) {
 		e.preventDefault();
+		e.stopPropagation();
 		dragOverPath = null;
 		const source = e.dataTransfer?.getData('text/plain');
 		if (source && source !== node.path) onMove(source, node.path);
@@ -53,7 +60,11 @@
 
 <ul class="tree" style="--depth: {depth}">
 	{#each nodes as node (node.path)}
-		<li>
+		<li
+			ondragover={node.isDir ? (e) => onDragOverFolder(e, node) : undefined}
+			ondragleave={node.isDir ? () => onDragLeaveFolder(node) : undefined}
+			ondrop={node.isDir ? (e) => onDropOnFolder(e, node) : undefined}
+		>
 			{#if node.isDir}
 				<button
 					class="entry dir"
@@ -62,9 +73,6 @@
 					onclick={() => toggle(node.path)}
 					oncontextmenu={(e) => onContextMenu(node, e)}
 					ondragstart={(e) => onDragStart(e, node)}
-					ondragover={(e) => onDragOverFolder(e, node)}
-					ondragleave={() => (dragOverPath = null)}
-					ondrop={(e) => onDropOnFolder(e, node)}
 				>
 					<span class="chevron" class:open={expanded[node.path]}>
 						<Icon name="chevron-right" size={14} />

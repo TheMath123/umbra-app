@@ -2,6 +2,7 @@
 	import type { Tab } from './types';
 	import Icon from './Icon.svelte';
 	import { navigateWithArrows } from './keyboardNav';
+	import { t } from './i18n.svelte';
 
 	let {
 		tabs,
@@ -34,6 +35,7 @@
 
 	function onDragOverTab(e: DragEvent, index: number) {
 		e.preventDefault();
+		if (e.dataTransfer) e.dataTransfer.dropEffect = 'move';
 		dragOverIndex = index;
 	}
 
@@ -94,7 +96,15 @@
 
 <svelte:window ondragover={onWindowDragOver} ondragleave={onWindowDragLeave} />
 
-<div class="tabbar" role="tablist" tabindex="-1" bind:this={tabbarEl} onwheel={onWheel} onkeydown={onTabbarKeydown}>
+<div
+	class="tabbar"
+	role="tablist"
+	tabindex="-1"
+	data-tauri-drag-region
+	bind:this={tabbarEl}
+	onwheel={onWheel}
+	onkeydown={onTabbarKeydown}
+>
 	{#each tabs as tab, i (tab.path)}
 		<div
 			class="tab"
@@ -118,7 +128,7 @@
 			<span class="tab-name">{tab.path.split(/[\\/]/).pop()}</span>
 			<button
 				class="tab-close"
-				title="Fechar (Ctrl+W)"
+				title={t('tabs.close', { shortcut: 'Ctrl+W' })}
 				onclick={(e) => {
 					e.stopPropagation();
 					onClose(i);
