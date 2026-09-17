@@ -1,6 +1,7 @@
 <script lang="ts">
 	import Icon from './Icon.svelte';
 	import { shortcuts } from './shortcuts.svelte';
+	import pkg from '../../package.json';
 
 	let { onClose }: { onClose: () => void } = $props();
 
@@ -50,6 +51,8 @@
 			<button class="close" onclick={onClose} title="Fechar (Esc)"><Icon name="close" size={16} /></button>
 		</div>
 
+		<p class="version">MD Reader <span>v{pkg.version}</span></p>
+
 		<table class="shortcuts">
 			<tbody>
 				{#each entries as s, i (i)}
@@ -98,6 +101,16 @@
 	.header h2 {
 		font-size: 16px;
 		margin: 0;
+	}
+
+	.version {
+		margin: -6px 0 12px;
+		font-size: 12px;
+		color: var(--text-muted);
+	}
+
+	.version span {
+		font-variant-numeric: tabular-nums;
 	}
 
 	.close {
