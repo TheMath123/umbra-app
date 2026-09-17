@@ -29,8 +29,8 @@
 		align-items: stretch;
 		background: var(--surface);
 		border: 1px solid var(--border);
-		border-radius: 999px;
-		box-shadow: 0 2px 10px rgba(0, 0, 0, 0.18);
+		border-radius: 6px;
+		box-shadow: 0 2px 8px rgba(0, 0, 0, 0.14);
 		overflow: hidden;
 		z-index: 5;
 	}

@@ -13,6 +13,16 @@
 	import chevronRight from '@material-design-icons/svg/outlined/chevron_right.svg?raw';
 	import add from '@material-design-icons/svg/outlined/add.svg?raw';
 	import remove from '@material-design-icons/svg/outlined/remove.svg?raw';
+	import moreHoriz from '@material-design-icons/svg/outlined/more_horiz.svg?raw';
+	import settings from '@material-design-icons/svg/outlined/settings.svg?raw';
+	import palette from '@material-design-icons/svg/outlined/palette.svg?raw';
+	import formatSize from '@material-design-icons/svg/outlined/format_size.svg?raw';
+	import textFormat from '@material-design-icons/svg/outlined/text_format.svg?raw';
+	import keyboard from '@material-design-icons/svg/outlined/keyboard.svg?raw';
+	import restore from '@material-design-icons/svg/outlined/restore.svg?raw';
+	import uploadFile from '@material-design-icons/svg/outlined/upload_file.svg?raw';
+	import download from '@material-design-icons/svg/outlined/download.svg?raw';
+	import check from '@material-design-icons/svg/outlined/check.svg?raw';
 
 	const icons = {
 		folder,
@@ -28,7 +38,17 @@
 		close,
 		'chevron-right': chevronRight,
 		add,
-		remove
+		remove,
+		'more-horiz': moreHoriz,
+		settings,
+		palette,
+		'format-size': formatSize,
+		'text-format': textFormat,
+		keyboard,
+		restore,
+		'upload-file': uploadFile,
+		download,
+		check
 	} as const;
 
 	export type IconName = keyof typeof icons;

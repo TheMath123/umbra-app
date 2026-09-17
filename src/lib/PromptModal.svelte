@@ -85,8 +85,8 @@
 	.dialog {
 		background: var(--bg);
 		border: 1px solid var(--border);
-		border-radius: 10px;
-		box-shadow: 0 12px 40px rgba(0, 0, 0, 0.3);
+		border-radius: 8px;
+		box-shadow: 0 8px 24px rgba(0, 0, 0, 0.18);
 		width: min(380px, calc(100vw - 32px));
 		padding: 20px 24px;
 	}
@@ -109,7 +109,7 @@
 		color: var(--text);
 		background: var(--surface);
 		border: 1px solid var(--border);
-		border-radius: 6px;
+		border-radius: 4px;
 		padding: 8px 10px;
 		font-family: inherit;
 	}
@@ -127,7 +127,7 @@
 	}
 
 	.actions button {
-		border-radius: 6px;
+		border-radius: 4px;
 		padding: 7px 14px;
 		font-size: 13px;
 		cursor: pointer;

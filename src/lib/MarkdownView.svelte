@@ -4,7 +4,7 @@
 	import { openUrl } from '@tauri-apps/plugin-opener';
 	import { EditorView, Decoration, WidgetType, keymap } from '@codemirror/view';
 	import type { DecorationSet } from '@codemirror/view';
-	import { EditorState, StateField } from '@codemirror/state';
+	import { EditorState, StateField, Compartment } from '@codemirror/state';
 	import type { EditorState as EditorStateType } from '@codemirror/state';
 	import { markdown, markdownKeymap } from '@codemirror/lang-markdown';
 	import { GFM } from '@lezer/markdown';
@@ -12,6 +12,7 @@
 	import type { SyntaxNode } from '@lezer/common';
 	import { defaultKeymap, history, historyKeymap, indentWithTab } from '@codemirror/commands';
 	import { isExternalLink, resolveRelativePath } from './paths';
+	import { settings, FONT_STACKS, LINE_HEIGHTS, CONTENT_WIDTHS } from './settings.svelte';
 
 	let {
 		path,
@@ -103,9 +104,9 @@
 			table.className = 'cm-md-table';
 			this.rows.forEach((cells, i) => {
 				const tr = document.createElement('tr');
-				for (const cellText of cells) {
+				for (const cellHtml of cells) {
 					const cell = document.createElement(i < this.headerRowCount ? 'th' : 'td');
-					cell.textContent = cellText;
+					cell.innerHTML = cellHtml;
 					tr.appendChild(cell);
 				}
 				table.appendChild(tr);
@@ -118,8 +119,63 @@
 		return state.selection.ranges.some((r) => r.from <= to && r.to >= from);
 	}
 
+	function escapeHtml(s: string): string {
+		return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+	}
+
+	/** Renderiza o conteúdo inline de um nó (negrito, itálico, código,
+	 *  riscado, link) para HTML simples — usado dentro de células de
+	 *  tabela, que o CodeMirror não decora token a token como o resto do
+	 *  documento (a tabela vira um widget substituindo o node inteiro). */
+	function renderInlineHtml(container: SyntaxNode, state: EditorStateType): string {
+		const text = (from: number, to: number) => escapeHtml(state.doc.sliceString(from, to));
+		let html = '';
+		let pos = container.from;
+		let node = container.firstChild;
+		while (node) {
+			if (node.from > pos) html += text(pos, node.from);
+			html += renderInlineNode(node, state);
+			pos = node.to;
+			node = node.nextSibling;
+		}
+		if (pos < container.to) html += text(pos, container.to);
+		return html;
+	}
+
+	function renderInlineNode(node: SyntaxNode, state: EditorStateType): string {
+		const text = (from: number, to: number) => escapeHtml(state.doc.sliceString(from, to));
+		const inner = (markName: string) => {
+			const marks = node.getChildren(markName);
+			return { from: marks[0]?.to ?? node.from, to: marks[1]?.from ?? node.to };
+		};
+		switch (node.name) {
+			case 'StrongEmphasis': {
+				const { from, to } = inner('EmphasisMark');
+				return `<strong>${text(from, to)}</strong>`;
+			}
+			case 'Emphasis': {
+				const { from, to } = inner('EmphasisMark');
+				return `<em>${text(from, to)}</em>`;
+			}
+			case 'Strikethrough': {
+				const { from, to } = inner('StrikethroughMark');
+				return `<s>${text(from, to)}</s>`;
+			}
+			case 'InlineCode': {
+				const { from, to } = inner('CodeMark');
+				return `<code>${text(from, to)}</code>`;
+			}
+			case 'Link': {
+				const { from, to } = inner('LinkMark');
+				return `<span class="cm-md-link">${text(from, to)}</span>`;
+			}
+			default:
+				return text(node.from, node.to);
+		}
+	}
+
 	function cellsOf(row: SyntaxNode, state: EditorStateType): string[] {
-		return row.getChildren('TableCell').map((c) => state.doc.sliceString(c.from, c.to).trim());
+		return row.getChildren('TableCell').map((c) => renderInlineHtml(c, state));
 	}
 
 	/**
@@ -364,13 +420,24 @@
 		editorHost?.classList.remove('modifier-down');
 	}
 
-	const editorTheme = EditorView.theme({
-		'&': { color: 'var(--text)', backgroundColor: 'transparent', fontSize: '15px' },
-		'.cm-content': { padding: '32px 40px 80px', fontFamily: 'inherit', caretColor: 'var(--text)' },
-		'.cm-line': { padding: '0' },
-		'.cm-scroller': { fontFamily: 'inherit', lineHeight: '1.65' },
-		'&.cm-focused': { outline: 'none' }
-	});
+	// Num Compartment para poder trocar fonte/tamanho/espaçamento em tempo
+	// real (configurações) sem recriar o editor — preserva cursor, seleção
+	// e histórico de undo/redo.
+	const fontCompartment = new Compartment();
+
+	function buildEditorTheme() {
+		return EditorView.theme({
+			'&': { color: 'var(--text)', backgroundColor: 'transparent', fontSize: `${settings.fontSize}px` },
+			'.cm-content': {
+				padding: '32px 40px 80px',
+				fontFamily: FONT_STACKS[settings.fontFamily],
+				caretColor: 'var(--text)'
+			},
+			'.cm-line': { padding: '0' },
+			'.cm-scroller': { fontFamily: 'inherit', lineHeight: String(LINE_HEIGHTS[settings.lineHeight]) },
+			'&.cm-focused': { outline: 'none' }
+		});
+	}
 
 	let saveTimer: ReturnType<typeof setTimeout> | undefined;
 	function scheduleSave() {
@@ -405,7 +472,7 @@
 					markdown({ extensions: GFM }),
 					livePreviewField(basePath),
 					EditorView.lineWrapping,
-					editorTheme,
+					fontCompartment.of(buildEditorTheme()),
 					EditorView.updateListener.of((u) => {
 						if (u.docChanged) scheduleSave();
 					}),
@@ -426,6 +493,15 @@
 	$effect(() => {
 		return () => destroyEditor();
 	});
+
+	// Fonte/tamanho/espaçamento das configurações mudam em tempo real, sem
+	// recriar o editor (preserva cursor, seleção e histórico de undo).
+	$effect(() => {
+		settings.fontFamily;
+		settings.fontSize;
+		settings.lineHeight;
+		view?.dispatch({ effects: fontCompartment.reconfigure(buildEditorTheme()) });
+	});
 </script>
 
 <svelte:window onkeydown={onWindowKeydown} onkeyup={onWindowKeyup} onblur={onWindowBlur} />
@@ -433,7 +509,11 @@
 <div class="view">
 	{#if saving}<span class="status">Salvando…</span>{/if}
 	<div class="body">
-		<div class="doc-host" style="zoom: {zoom}%;" bind:this={editorHost}></div>
+		<div
+			class="doc-host"
+			style="zoom: {zoom}%; max-width: {CONTENT_WIDTHS[settings.contentWidth]};"
+			bind:this={editorHost}
+		></div>
 	</div>
 </div>
 
@@ -454,7 +534,7 @@
 		font-size: 12px;
 		background: var(--surface);
 		border: 1px solid var(--border);
-		border-radius: 999px;
+		border-radius: 4px;
 		padding: 2px 10px;
 		z-index: 1;
 	}
@@ -468,7 +548,7 @@
 	}
 
 	.doc-host {
-		max-width: 780px;
+		/* max-width vem das configurações (largura do conteúdo), via style inline. */
 		margin: 0 auto;
 	}
 
@@ -579,7 +659,7 @@
 	:global(.cm-md-image) {
 		display: block;
 		max-width: 100%;
-		border-radius: 6px;
+		border-radius: 4px;
 		margin: 0.4em 0;
 		cursor: pointer;
 	}

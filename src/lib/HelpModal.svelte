@@ -1,28 +1,32 @@
 <script lang="ts">
 	import Icon from './Icon.svelte';
+	import { shortcuts } from './shortcuts.svelte';
 
 	let { onClose }: { onClose: () => void } = $props();
 
-	const shortcuts: { keys: string; desc: string }[] = [
+	// Os atalhos de teclado são lidos do estado configurável (Menu "..." →
+	// Personalizar atalhos), então esta lista sempre reflete o que está
+	// valendo de fato, mesmo se o usuário tiver mudado algo.
+	let entries = $derived<{ keys: string; desc: string }[]>([
 		{ keys: 'Clique no texto', desc: 'Edita o parágrafo, título ou item de lista clicado (estilo Typora)' },
 		{ keys: 'Clique em link', desc: 'Abre no navegador (externo) ou navega até o arquivo (interno)' },
 		{ keys: 'Esc', desc: 'Cancela a edição do bloco atual' },
-		{ keys: 'Ctrl + Tab', desc: 'Vai para a próxima aba' },
-		{ keys: 'Ctrl + Shift + Tab', desc: 'Vai para a aba anterior' },
+		{ keys: shortcuts.nextTab, desc: 'Vai para a próxima aba' },
+		{ keys: shortcuts.prevTab, desc: 'Vai para a aba anterior' },
 		{ keys: 'Ctrl + 1 … 9', desc: 'Vai direto para a aba correspondente' },
-		{ keys: 'Ctrl + W', desc: 'Fecha a aba atual' },
+		{ keys: shortcuts.closeTab, desc: 'Fecha a aba atual' },
 		{ keys: 'Arrastar aba', desc: 'Reordena as abas' },
 		{ keys: 'Arrastar aba para fora', desc: 'Abre a aba em uma nova janela' },
-		{ keys: 'Ctrl + / Ctrl -', desc: 'Aumenta ou diminui o zoom da visualização' },
+		{ keys: `${shortcuts.zoomIn} / ${shortcuts.zoomOut}`, desc: 'Aumenta ou diminui o zoom da visualização' },
 		{ keys: 'Ctrl + roda do mouse', desc: 'Também ajusta o zoom' },
-		{ keys: 'Ctrl + 0', desc: 'Restaura o zoom para 100%' },
-		{ keys: 'Ctrl + B', desc: 'Fixa ou oculta automaticamente a barra lateral' },
+		{ keys: shortcuts.zoomReset, desc: 'Restaura o zoom para 100%' },
+		{ keys: shortcuts.toggleSidebar, desc: 'Fixa ou oculta automaticamente a barra lateral' },
 		{
 			keys: 'Clique direito na árvore',
 			desc: 'Nova pasta, novo arquivo, renomear, excluir ou arrastar para mover'
 		},
-		{ keys: '?', desc: 'Abre esta janela de ajuda' }
-	];
+		{ keys: shortcuts.toggleHelp, desc: 'Abre esta janela de ajuda' }
+	]);
 
 	function onKeydown(e: KeyboardEvent) {
 		if (e.key === 'Escape') onClose();
@@ -48,7 +52,7 @@
 
 		<table class="shortcuts">
 			<tbody>
-				{#each shortcuts as s (s.keys)}
+				{#each entries as s, i (i)}
 					<tr>
 						<td class="keys"><kbd>{s.keys}</kbd></td>
 						<td class="desc">{s.desc}</td>
@@ -75,11 +79,12 @@
 	.dialog {
 		background: var(--bg);
 		border: 1px solid var(--border);
-		border-radius: 10px;
-		box-shadow: 0 12px 40px rgba(0, 0, 0, 0.3);
+		border-radius: 8px;
+		box-shadow: 0 8px 24px rgba(0, 0, 0, 0.18);
 		width: min(440px, calc(100vw - 32px));
 		max-height: calc(100vh - 64px);
 		overflow-y: auto;
+		overflow-x: hidden;
 		padding: 20px 24px;
 	}
 

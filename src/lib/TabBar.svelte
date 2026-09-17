@@ -1,6 +1,7 @@
 <script lang="ts">
 	import type { Tab } from './types';
 	import Icon from './Icon.svelte';
+	import { navigateWithArrows } from './keyboardNav';
 
 	let {
 		tabs,
@@ -85,11 +86,15 @@
 		e.preventDefault();
 		tabbarEl.scrollLeft += e.deltaY;
 	}
+
+	function onTabbarKeydown(e: KeyboardEvent) {
+		if (tabbarEl) navigateWithArrows(e, tabbarEl, '.tab', 'horizontal');
+	}
 </script>
 
 <svelte:window ondragover={onWindowDragOver} ondragleave={onWindowDragLeave} />
 
-<div class="tabbar" role="tablist" bind:this={tabbarEl} onwheel={onWheel}>
+<div class="tabbar" role="tablist" tabindex="-1" bind:this={tabbarEl} onwheel={onWheel} onkeydown={onTabbarKeydown}>
 	{#each tabs as tab, i (tab.path)}
 		<div
 			class="tab"
@@ -129,11 +134,12 @@
 	.tabbar {
 		display: flex;
 		align-items: stretch;
+		flex: 1;
+		min-width: 0;
 		overflow-x: auto;
 		overflow-y: hidden;
 		border-bottom: 1px solid var(--border);
 		background: var(--surface);
-		flex-shrink: 0;
 		/* Scroll continua funcionando (roda do mouse, Ctrl+Tab) — só a barra
 		   visual some, ela só ocupava espaço sem ajudar em nada aqui. */
 		scrollbar-width: none;

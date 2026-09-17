@@ -12,8 +12,15 @@
 	import ZoomControls from '$lib/ZoomControls.svelte';
 	import ContextMenu from '$lib/ContextMenu.svelte';
 	import PromptModal from '$lib/PromptModal.svelte';
+	import SettingsModal from '$lib/SettingsModal.svelte';
+	import ShortcutsModal from '$lib/ShortcutsModal.svelte';
+	import ThemeModal from '$lib/ThemeModal.svelte';
 	import Icon from '$lib/Icon.svelte';
 	import { kindForPath, parentDir, baseName, joinPath } from '$lib/paths';
+	import { settings, persistSettings } from '$lib/settings.svelte';
+	import { matchesShortcut, recordingState } from '$lib/shortcuts.svelte';
+	import { findTheme, applyThemeOverride } from '$lib/themes.svelte';
+	import { navigateWithArrows } from '$lib/keyboardNav';
 	import type { DirNode, Tab } from '$lib/types';
 
 	let rootDir = $state<string | null>(null);
@@ -23,6 +30,10 @@
 	let error = $state<string | null>(null);
 	let loading = $state(true);
 	let showHelp = $state(false);
+	let showSettings = $state(false);
+	let showShortcuts = $state(false);
+	let showThemes = $state(false);
+	let overflowMenu = $state<{ x: number; y: number } | null>(null);
 
 	type PromptState =
 		| { kind: 'create-folder'; parentPath: string }
@@ -33,40 +44,24 @@
 	let prompt = $state<PromptState>(null);
 
 	// Fixa (sempre visível) ou "automática" (desliza para fora ao tirar o
-	// mouse, volta ao encostar na borda) — persistido entre sessões.
-	let sidebarMode = $state<'fixed' | 'auto'>('fixed');
-	let sidebarVisible = $state(true);
+	// mouse, volta ao encostar na borda) — o modo padrão vem das
+	// configurações; a visibilidade momentânea é só desta sessão.
+	let sidebarVisible = $state(settings.sidebarMode === 'fixed');
 	let sidebarHideTimer: ReturnType<typeof setTimeout> | undefined;
 
-	$effect(() => {
-		try {
-			const saved = localStorage.getItem('mdreader.sidebarMode');
-			if (saved === 'auto' || saved === 'fixed') {
-				sidebarMode = saved;
-				sidebarVisible = saved === 'fixed';
-			}
-		} catch {
-			// localStorage indisponível (ex.: janela privada) — segue com o padrão.
-		}
-	});
-
 	function toggleSidebarMode() {
-		sidebarMode = sidebarMode === 'fixed' ? 'auto' : 'fixed';
-		sidebarVisible = sidebarMode === 'fixed';
-		try {
-			localStorage.setItem('mdreader.sidebarMode', sidebarMode);
-		} catch {
-			// ignora — não é crítico persistir a preferência.
-		}
+		settings.sidebarMode = settings.sidebarMode === 'fixed' ? 'auto' : 'fixed';
+		sidebarVisible = settings.sidebarMode === 'fixed';
+		persistSettings();
 	}
 
 	function onSidebarMouseEnter() {
 		clearTimeout(sidebarHideTimer);
-		if (sidebarMode === 'auto') sidebarVisible = true;
+		if (settings.sidebarMode === 'auto') sidebarVisible = true;
 	}
 
 	function onSidebarMouseLeave() {
-		if (sidebarMode !== 'auto') return;
+		if (settings.sidebarMode !== 'auto') return;
 		sidebarHideTimer = setTimeout(() => (sidebarVisible = false), 500);
 	}
 
@@ -311,9 +306,11 @@
 	}
 
 	function handleKeydown(e: KeyboardEvent) {
-		const mod = e.ctrlKey || e.metaKey;
+		// O modal de atalhos está esperando uma combinação nova — não executa
+		// a ação antiga enquanto isso.
+		if (recordingState.active) return;
 
-		if (e.key === '?' && !mod) {
+		if (matchesShortcut(e, 'toggleHelp')) {
 			// Não abrir enquanto o usuário digita em algum campo/editor.
 			const target = e.target as HTMLElement | null;
 			const typing = target?.closest('.cm-editor, input, textarea, [contenteditable="true"]');
@@ -324,25 +321,23 @@
 			}
 		}
 
-		if (!mod) return;
-
-		if (e.key.toLowerCase() === 'b') {
+		if (matchesShortcut(e, 'toggleSidebar')) {
 			e.preventDefault();
 			toggleSidebarMode();
 			return;
 		}
 
-		if (zoomable && (e.key === '=' || e.key === '+')) {
+		if (zoomable && matchesShortcut(e, 'zoomIn')) {
 			e.preventDefault();
 			zoomIn();
 			return;
 		}
-		if (zoomable && e.key === '-') {
+		if (zoomable && matchesShortcut(e, 'zoomOut')) {
 			e.preventDefault();
 			zoomOut();
 			return;
 		}
-		if (zoomable && e.key === '0') {
+		if (zoomable && matchesShortcut(e, 'zoomReset')) {
 			e.preventDefault();
 			zoomReset();
 			return;
@@ -350,15 +345,17 @@
 
 		if (tabs.length === 0) return;
 
-		if (e.key === 'Tab') {
+		if (matchesShortcut(e, 'nextTab')) {
 			e.preventDefault();
-			const dir = e.shiftKey ? -1 : 1;
-			const current = activeTabIndex ?? 0;
-			activeTabIndex = (current + dir + tabs.length) % tabs.length;
-		} else if (e.key.toLowerCase() === 'w') {
+			activeTabIndex = ((activeTabIndex ?? 0) + 1) % tabs.length;
+		} else if (matchesShortcut(e, 'prevTab')) {
+			e.preventDefault();
+			activeTabIndex = ((activeTabIndex ?? 0) - 1 + tabs.length) % tabs.length;
+		} else if (matchesShortcut(e, 'closeTab')) {
 			e.preventDefault();
 			if (activeTabIndex !== null) closeTab(activeTabIndex);
-		} else if (/^[1-9]$/.test(e.key)) {
+		} else if ((e.ctrlKey || e.metaKey) && /^[1-9]$/.test(e.key)) {
+			// Ir para a aba N não é customizável — é sempre Ctrl+1..9.
 			e.preventDefault();
 			const index = Number(e.key) - 1;
 			if (index < tabs.length) activeTabIndex = index;
@@ -387,6 +384,25 @@
 		});
 	}
 
+	// Aplica o tema escolhido. "system" segue o SO (via media query, sem
+	// nenhum override). "light"/"dark" usam as regras CSS estáticas do app
+	// (via data-theme). Qualquer outro id (tema embutido extra ou
+	// customizado) sobrescreve as variáveis de cor diretamente via JS.
+	$effect(() => {
+		const root = document.documentElement;
+		const id = settings.themeId;
+		if (id === 'system') {
+			root.removeAttribute('data-theme');
+			applyThemeOverride(null);
+		} else if (id === 'light' || id === 'dark') {
+			root.setAttribute('data-theme', id);
+			applyThemeOverride(null);
+		} else {
+			root.removeAttribute('data-theme');
+			applyThemeOverride(findTheme(id) ?? null);
+		}
+	});
+
 	$effect(() => {
 		(async () => {
 			const params = new URLSearchParams(window.location.search);
@@ -408,6 +424,14 @@
 <svelte:window onkeydown={handleKeydown} onwheel={handleWheel} />
 
 <main>
+	<button
+		class="overflow-btn"
+		onclick={(e) => (overflowMenu = { x: e.clientX, y: e.clientY })}
+		title="Mais opções"
+	>
+		<Icon name="more-horiz" size={18} />
+	</button>
+
 	{#if loading}
 		<div class="empty">Carregando…</div>
 	{:else if !rootDir}
@@ -416,14 +440,14 @@
 			<button onclick={pickFolder}>Abrir pasta…</button>
 		</div>
 	{:else}
-		{#if sidebarMode === 'auto' && !sidebarVisible}
+		{#if settings.sidebarMode === 'auto' && !sidebarVisible}
 			<div class="sidebar-trigger" role="presentation" onmouseenter={onSidebarMouseEnter}></div>
 		{/if}
 
 		<aside
 			class="sidebar"
-			class:auto={sidebarMode === 'auto'}
-			class:collapsed={sidebarMode === 'auto' && !sidebarVisible}
+			class:auto={settings.sidebarMode === 'auto'}
+			class:collapsed={settings.sidebarMode === 'auto' && !sidebarVisible}
 			onmouseenter={onSidebarMouseEnter}
 			onmouseleave={onSidebarMouseLeave}
 			oncontextmenu={(e) => openContextMenu(null, e)}
@@ -436,41 +460,51 @@
 					<button
 						class="icon-btn"
 						onclick={toggleSidebarMode}
-						title={sidebarMode === 'fixed' ? 'Ocultar automaticamente (Ctrl+B)' : 'Fixar barra lateral (Ctrl+B)'}
+						title={settings.sidebarMode === 'fixed'
+							? 'Ocultar automaticamente (Ctrl+B)'
+							: 'Fixar barra lateral (Ctrl+B)'}
 					>
-						<Icon name={sidebarMode === 'fixed' ? 'push-pin-filled' : 'push-pin-outlined'} size={15} />
-					</button>
-					<button class="icon-btn" onclick={() => (showHelp = true)} title="Ajuda e atalhos (?)">
-						<Icon name="help-outline" size={15} />
+						<Icon name={settings.sidebarMode === 'fixed' ? 'push-pin-filled' : 'push-pin-outlined'} size={15} />
 					</button>
 					<button class="icon-btn" onclick={(e) => openContextMenu(null, e)} title="Nova pasta ou arquivo">
 						<Icon name="add" size={16} />
 					</button>
 				</div>
 			</div>
-			{#if tree.length === 0}
-				<p class="empty-tree">Nenhum arquivo suportado encontrado.</p>
-			{:else}
-				<FileTree
-					nodes={tree}
-					selectedPath={activeTab?.path ?? null}
-					onSelect={selectFile}
-					onContextMenu={openContextMenu}
-					onMove={moveItem}
-				/>
-			{/if}
+			<div
+				class="tree-scroll"
+				role="tree"
+				tabindex="-1"
+				onkeydown={(e) => navigateWithArrows(e, e.currentTarget as HTMLElement, '.entry')}
+			>
+				{#if tree.length === 0}
+					<p class="empty-tree">Nenhum arquivo suportado encontrado.</p>
+				{:else}
+					<FileTree
+						nodes={tree}
+						selectedPath={activeTab?.path ?? null}
+						onSelect={selectFile}
+						onContextMenu={openContextMenu}
+						onMove={moveItem}
+					/>
+				{/if}
+			</div>
 		</aside>
 
 		<section class="content">
 			{#if tabs.length > 0}
-				<TabBar
-					{tabs}
-					activeIndex={activeTabIndex}
-					onActivate={(i) => (activeTabIndex = i)}
-					onClose={closeTab}
-					onReorder={reorderTabs}
-					onTearOff={tearOffTab}
-				/>
+				<div class="content-topbar">
+					<TabBar
+						{tabs}
+						activeIndex={activeTabIndex}
+						onActivate={(i) => (activeTabIndex = i)}
+						onClose={closeTab}
+						onReorder={reorderTabs}
+						onTearOff={tearOffTab}
+					/>
+					<!-- Espaço reservado para o botão "..." flutuante nunca cobrir uma aba. -->
+					<div class="overflow-spacer"></div>
+				</div>
 			{/if}
 
 			{#if error}
@@ -512,6 +546,32 @@
 
 {#if showHelp}
 	<HelpModal onClose={() => (showHelp = false)} />
+{/if}
+
+{#if showSettings}
+	<SettingsModal onClose={() => (showSettings = false)} onOpenThemes={() => (showThemes = true)} />
+{/if}
+
+{#if showShortcuts}
+	<ShortcutsModal onClose={() => (showShortcuts = false)} />
+{/if}
+
+{#if showThemes}
+	<ThemeModal onClose={() => (showThemes = false)} />
+{/if}
+
+{#if overflowMenu}
+	<ContextMenu
+		x={overflowMenu.x}
+		y={overflowMenu.y}
+		items={[
+			{ label: 'Tema', icon: 'palette', onClick: () => (showThemes = true) },
+			{ label: 'Configurações', icon: 'settings', onClick: () => (showSettings = true) },
+			{ label: 'Personalizar atalhos', icon: 'keyboard', onClick: () => (showShortcuts = true) },
+			{ label: 'Ajuda e atalhos', icon: 'help-outline', onClick: () => (showHelp = true) }
+		]}
+		onClose={() => (overflowMenu = null)}
+	/>
 {/if}
 
 {#if contextMenu}
@@ -564,10 +624,13 @@
 		--hover: #ececef;
 		--accent: #4f46e5;
 		--accent-text: #ffffff;
+		--danger: #dc2626;
 	}
 
 	@media (prefers-color-scheme: dark) {
-		:global(:root) {
+		/* "Sistema" (sem data-theme) segue o SO; "Claro" força as cores claras
+		   mesmo com o SO em modo escuro. */
+		:global(:root:not([data-theme='light'])) {
 			--bg: #1e1e22;
 			--surface: #29292e;
 			--border: #38383e;
@@ -576,7 +639,21 @@
 			--hover: #333338;
 			--accent: #6366f1;
 			--accent-text: #ffffff;
+			--danger: #f87171;
 		}
+	}
+
+	/* "Escuro" força as cores escuras mesmo com o SO em modo claro. */
+	:global(:root[data-theme='dark']) {
+		--bg: #1e1e22;
+		--surface: #29292e;
+		--border: #38383e;
+		--text: #eaeaec;
+		--text-muted: #9a9aa0;
+		--hover: #333338;
+		--accent: #6366f1;
+		--accent-text: #ffffff;
+		--danger: #f87171;
 	}
 
 	:global(html, body) {
@@ -596,6 +673,39 @@
 		width: 100%;
 	}
 
+	.overflow-btn {
+		position: absolute;
+		top: 4px;
+		right: 8px;
+		z-index: 30;
+		display: inline-flex;
+		align-items: center;
+		justify-content: center;
+		border: none;
+		background: none;
+		color: var(--text-muted);
+		cursor: pointer;
+		padding: 5px;
+		border-radius: 4px;
+	}
+
+	.overflow-btn:hover {
+		background: var(--hover);
+		color: var(--text);
+	}
+
+	.content-topbar {
+		display: flex;
+		align-items: stretch;
+	}
+
+	.overflow-spacer {
+		width: 36px;
+		flex-shrink: 0;
+		border-bottom: 1px solid var(--border);
+		background: var(--surface);
+	}
+
 	.empty {
 		margin: auto;
 		text-align: center;
@@ -610,7 +720,7 @@
 		border: 1px solid var(--border);
 		background: var(--accent);
 		color: var(--accent-text);
-		border-radius: 6px;
+		border-radius: 4px;
 		padding: 8px 16px;
 		font-size: 14px;
 		cursor: pointer;
@@ -620,10 +730,16 @@
 		width: 260px;
 		flex-shrink: 0;
 		border-right: 1px solid var(--border);
-		overflow-y: auto;
 		display: flex;
 		flex-direction: column;
 		background: var(--bg);
+	}
+
+	.tree-scroll {
+		flex: 1;
+		min-height: 0;
+		overflow-y: auto;
+		overflow-x: hidden;
 	}
 
 	/* Modo automático: a sidebar vira um overlay que desliza para fora em
@@ -634,7 +750,7 @@
 		bottom: 0;
 		left: 0;
 		z-index: 20;
-		box-shadow: 2px 0 12px rgba(0, 0, 0, 0.18);
+		box-shadow: 2px 0 10px rgba(0, 0, 0, 0.14);
 		transition: transform 0.18s ease;
 	}
 
@@ -731,8 +847,8 @@
 	}
 
 	.error {
-		background: #fee2e2;
-		color: #991b1b;
+		background: color-mix(in srgb, var(--danger) 18%, var(--bg));
+		color: var(--danger);
 		padding: 8px 14px;
 		font-size: 13px;
 	}

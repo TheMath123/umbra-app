@@ -1,5 +1,6 @@
 <script lang="ts">
 	import Icon, { type IconName } from './Icon.svelte';
+	import { navigateWithArrows } from './keyboardNav';
 
 	interface MenuItem {
 		label: string;
@@ -25,6 +26,16 @@
 		action();
 		onClose();
 	}
+
+	function onMenuKeydown(e: KeyboardEvent) {
+		if (menuEl) navigateWithArrows(e, menuEl, '[role="menuitem"]');
+	}
+
+	// Foca o primeiro item assim que o menu aparece — já dá para navegar
+	// com as setas sem precisar de Tab antes.
+	$effect(() => {
+		menuEl?.querySelector<HTMLElement>('[role="menuitem"]')?.focus();
+	});
 </script>
 
 <svelte:window
@@ -35,7 +46,7 @@
 
 <div class="backdrop" role="presentation" onclick={onClose} oncontextmenu={(e) => e.preventDefault()}></div>
 
-<ul class="menu" bind:this={menuEl} {style} role="menu">
+<ul class="menu" bind:this={menuEl} {style} role="menu" onkeydown={onMenuKeydown}>
 	{#each items as item (item.label)}
 		<li role="none">
 			<button role="menuitem" class:danger={item.danger} onclick={() => runAndClose(item.onClick)}>
@@ -62,8 +73,8 @@
 		min-width: 180px;
 		background: var(--bg);
 		border: 1px solid var(--border);
-		border-radius: 8px;
-		box-shadow: 0 8px 28px rgba(0, 0, 0, 0.22);
+		border-radius: 6px;
+		box-shadow: 0 6px 20px rgba(0, 0, 0, 0.16);
 	}
 
 	.menu button {
@@ -77,7 +88,7 @@
 		color: var(--text);
 		font-size: 13px;
 		padding: 7px 10px;
-		border-radius: 5px;
+		border-radius: 4px;
 		cursor: pointer;
 	}
 
@@ -86,6 +97,6 @@
 	}
 
 	.menu button.danger {
-		color: #dc2626;
+		color: var(--danger);
 	}
 </style>
