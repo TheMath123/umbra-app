@@ -43,6 +43,32 @@ Salve como `.json` (o nome do arquivo não importa) e importe pelo app.
 Qualquer valor de cor CSS válido funciona: `#rrggbb`, `#rgb`, `rgb(...)`,
 `hsl(...)` ou nomes de cor (`"crimson"`).
 
+## Tipografia (opcional)
+
+Além das cores, um tema pode fixar sua própria fonte, largura de conteúdo,
+tamanho de fonte e espaçamento entre linhas — útil para um tema pensado para
+leitura (ex.: uma fonte serifada mais larga). Quando presentes, esses campos
+têm prioridade sobre a escolha da pessoa em Configurações, só enquanto esse
+tema estiver ativo:
+
+```json
+{
+	"name": "Meu Tema",
+	"colors": { "...": "..." },
+	"typography": {
+		"fontFamily": "'Fira Code', monospace",
+		"contentWidth": "700px",
+		"fontSize": 16,
+		"lineHeight": 1.7
+	}
+}
+```
+
+Todos os quatro campos de `typography` são opcionais e independentes — um
+tema pode definir só `fontFamily`, só `contentWidth`, ou qualquer combinação.
+Um tema sem o bloco `typography` (ou sem ele por completo) simplesmente
+respeita o que a pessoa escolheu em Configurações, como sempre.
+
 ## Dicas para um tema legível
 
 - Mantenha bastante contraste entre `bg`/`surface` e `text` (o app não

@@ -4,7 +4,10 @@
 	import { navigateWithArrows } from './keyboardNav';
 	import { settings, persistSettings, resetSettings } from './settings.svelte';
 	import type { FontChoice, ContentWidth, LineHeightChoice, SidebarModePref } from './settings.svelte';
+	import { findTheme } from './themes.svelte';
 	import { t, i18n, LOCALE_LIST, setLocale } from './i18n.svelte';
+
+	let themeOverride = $derived(findTheme(settings.themeId)?.typography);
 
 	let { onClose, onOpenThemes }: { onClose: () => void; onOpenThemes: () => void } = $props();
 
@@ -61,14 +64,16 @@
 	let fontOptions = $derived<{ value: FontChoice; label: string }[]>([
 		{ value: 'system', label: t('settings.fontSystem') },
 		{ value: 'serif', label: t('settings.fontSerif') },
-		{ value: 'mono', label: t('settings.fontMono') }
+		{ value: 'mono', label: t('settings.fontMono') },
+		{ value: 'custom', label: t('settings.fontCustom') }
 	]);
 
 	let widthOptions = $derived<{ value: ContentWidth; label: string }[]>([
 		{ value: 'narrow', label: t('settings.widthNarrow') },
 		{ value: 'normal', label: t('settings.widthNormal') },
 		{ value: 'wide', label: t('settings.widthWide') },
-		{ value: 'full', label: t('settings.widthFull') }
+		{ value: 'full', label: t('settings.widthFull') },
+		{ value: 'custom', label: t('settings.widthCustom') }
 	]);
 
 	let lineHeightOptions = $derived<{ value: LineHeightChoice; label: string }[]>([
@@ -125,6 +130,10 @@
 					<button class="theme-link" onclick={openThemes}>{t('settings.chooseTheme')}</button>
 				</div>
 
+				{#if themeOverride?.fontFamily || themeOverride?.fontSize}
+					<p class="theme-override-note">{t('settings.themeOverridesFont')}</p>
+				{/if}
+
 				<div class="row">
 					<span class="row-label"><Icon name="text-format" size={14} /> {t('settings.fontLabel')}</span>
 					<div class="segmented" role="toolbar" tabindex="-1" onkeydown={onSegmentedKeydown}>
@@ -138,6 +147,19 @@
 						{/each}
 					</div>
 				</div>
+
+				{#if settings.fontFamily === 'custom'}
+					<div class="row">
+						<span class="row-label">{t('settings.fontCustomLabel')}</span>
+						<input
+							class="text-input"
+							type="text"
+							placeholder="'Fira Code', monospace"
+							value={settings.customFontFamily}
+							oninput={(e) => set('customFontFamily', e.currentTarget.value)}
+						/>
+					</div>
+				{/if}
 
 				<div class="row">
 					<span class="row-label"><Icon name="format-size" size={14} /> {t('settings.fontSize')}</span>
@@ -154,6 +176,10 @@
 					</div>
 				</div>
 
+				{#if themeOverride?.contentWidth}
+					<p class="theme-override-note">{t('settings.themeOverridesWidth')}</p>
+				{/if}
+
 				<div class="row">
 					<span class="row-label">{t('settings.contentWidth')}</span>
 					<div class="segmented" role="toolbar" tabindex="-1" onkeydown={onSegmentedKeydown}>
@@ -167,6 +193,27 @@
 						{/each}
 					</div>
 				</div>
+
+				{#if settings.contentWidth === 'custom'}
+					<div class="row">
+						<span class="row-label">{t('settings.widthCustomLabel')}</span>
+						<div class="slider-row">
+							<input
+								type="range"
+								min="320"
+								max="1600"
+								step="20"
+								value={settings.customContentWidthPx}
+								oninput={(e) => set('customContentWidthPx', Number(e.currentTarget.value))}
+							/>
+							<span class="slider-value">{settings.customContentWidthPx}px</span>
+						</div>
+					</div>
+				{/if}
+
+				{#if themeOverride?.lineHeight}
+					<p class="theme-override-note">{t('settings.themeOverridesLineHeight')}</p>
+				{/if}
 
 				<div class="row">
 					<span class="row-label">{t('settings.lineHeight')}</span>
@@ -196,6 +243,27 @@
 								{opt.label}
 							</button>
 						{/each}
+					</div>
+				</div>
+			</section>
+
+			<section>
+				<h3>{t('settings.window')}</h3>
+				<div class="row stacked">
+					<span class="row-label">
+						{t('settings.windowOpacity')}
+						<span class="row-desc">{t('settings.windowOpacityDesc')}</span>
+					</span>
+					<div class="slider-row">
+						<input
+							type="range"
+							min="40"
+							max="100"
+							step="5"
+							value={settings.windowOpacity}
+							oninput={(e) => set('windowOpacity', Number(e.currentTarget.value))}
+						/>
+						<span class="slider-value">{settings.windowOpacity}%</span>
 					</div>
 				</div>
 			</section>
@@ -388,6 +456,29 @@
 	.toggle:disabled {
 		opacity: 0.6;
 		cursor: default;
+	}
+
+	.theme-override-note {
+		font-size: 11px;
+		color: var(--text-muted);
+		margin: 0 0 6px;
+	}
+
+	.text-input {
+		flex: 1;
+		min-width: 160px;
+		border: 1px solid var(--border);
+		background: var(--surface);
+		color: var(--text);
+		border-radius: 4px;
+		padding: 6px 10px;
+		font-size: 12px;
+		font-family: ui-monospace, SFMono-Regular, Consolas, 'Liberation Mono', Menlo, monospace;
+	}
+
+	.text-input:focus {
+		outline: 1px solid var(--accent);
+		outline-offset: -1px;
 	}
 
 	.integration-error {

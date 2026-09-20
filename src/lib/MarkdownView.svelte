@@ -12,7 +12,7 @@
 	import type { SyntaxNode } from '@lezer/common';
 	import { defaultKeymap, history, historyKeymap, indentWithTab } from '@codemirror/commands';
 	import { isExternalLink, resolveRelativePath } from './paths';
-	import { settings, FONT_STACKS, LINE_HEIGHTS, CONTENT_WIDTHS } from './settings.svelte';
+	import { settings, effectiveFontFamily, effectiveFontSize, effectiveLineHeight, effectiveContentWidth } from './settings.svelte';
 	import { isDarkThemeActive } from './themes.svelte';
 	import { codeLanguages, highlightStyleFor } from './codeSyntax';
 	import { t } from './i18n.svelte';
@@ -22,6 +22,7 @@
 		path,
 		content,
 		zoom = 100,
+		active = true,
 		onSave,
 		onNavigate,
 		onStats
@@ -29,6 +30,11 @@
 		path: string;
 		content: string;
 		zoom?: number;
+		/** Se essa aba é a visível no momento — a instância continua montada
+		 *  (escondida) quando o usuário troca de aba, pra preservar scroll,
+		 *  cursor e histórico de undo. Usado só pra reemitir as estatísticas
+		 *  da barra de status ao voltar pra essa aba. */
+		active?: boolean;
 		onSave: (newContent: string) => Promise<void> | void;
 		onNavigate?: (path: string) => void;
 		onStats?: (stats: DocStats) => void;
@@ -304,6 +310,15 @@
 							const l = state.doc.line(n);
 							push(l.from, l.from, Decoration.line({ class: 'cm-md-quote-line' }));
 						}
+						// Esconde o "> " de cada linha (igual aos outros marcadores) —
+						// sem isso ele sempre aparecia, mesmo fora de foco.
+						const focused = overlaps(state, node.from, node.to);
+						for (const mark of node.node.getChildren('QuoteMark')) {
+							let end = mark.to;
+							if (state.doc.sliceString(end, end + 1) === ' ') end += 1;
+							if (focused) markDiscreet(mark.from, end);
+							else hide(mark.from, end);
+						}
 						break;
 					}
 					case 'HorizontalRule': {
@@ -443,14 +458,14 @@
 
 	function buildEditorTheme() {
 		return EditorView.theme({
-			'&': { color: 'var(--text)', backgroundColor: 'transparent', fontSize: `${settings.fontSize}px` },
+			'&': { color: 'var(--text)', backgroundColor: 'transparent', fontSize: `${effectiveFontSize()}px` },
 			'.cm-content': {
 				padding: '32px 40px 80px',
-				fontFamily: FONT_STACKS[settings.fontFamily],
+				fontFamily: effectiveFontFamily(),
 				caretColor: 'var(--text)'
 			},
 			'.cm-line': { padding: '0' },
-			'.cm-scroller': { fontFamily: 'inherit', lineHeight: String(LINE_HEIGHTS[settings.lineHeight]) },
+			'.cm-scroller': { fontFamily: 'inherit', lineHeight: String(effectiveLineHeight()) },
 			'&.cm-focused': { outline: 'none' }
 		});
 	}
@@ -525,11 +540,14 @@
 	}
 
 	$effect(() => {
-		// Só recria o editor ao trocar de arquivo — `content` é lido "fora" da
-		// reatividade (untrack) para o auto-save (que reescreve essa prop no
-		// componente pai) não fazer o editor recomeçar do zero a cada save.
-		path;
-		createEditor(untrack(() => content), path);
+		// Roda uma única vez, na criação da instância: cada aba tem sua
+		// própria instância pra vida inteira (o Svelte usa um id estável
+		// como chave — ver +page.svelte), então não existe mais "trocar de
+		// arquivo dentro da mesma instância". Ler `path`/`content` fora da
+		// reatividade (untrack) garante isso — sem essa proteção, renomear
+		// ou mover o arquivo (que só muda `path`) recriaria o editor do
+		// zero, perdendo scroll/cursor/undo à toa.
+		createEditor(untrack(() => content), untrack(() => path));
 	});
 
 	$effect(() => {
@@ -537,9 +555,13 @@
 	});
 
 	// Fonte/tamanho/espaçamento das configurações mudam em tempo real, sem
-	// recriar o editor (preserva cursor, seleção e histórico de undo).
+	// recriar o editor (preserva cursor, seleção e histórico de undo). O
+	// tema ativo também entra nas dependências: ele pode definir sua própria
+	// fonte/tamanho (ver effectiveFontFamily/effectiveFontSize/etc.).
 	$effect(() => {
+		settings.themeId;
 		settings.fontFamily;
+		settings.customFontFamily;
 		settings.fontSize;
 		settings.lineHeight;
 		view?.dispatch({ effects: fontCompartment.reconfigure(buildEditorTheme()) });
@@ -571,6 +593,13 @@
 		return () => media.removeEventListener('change', onChange);
 	});
 
+	// A instância continua montada quando a aba não está ativa (ver `active`
+	// acima) — ao voltar pra ela, reemite as estatísticas, já que nenhuma
+	// mudança de documento/seleção acontece só por ficar visível de novo.
+	$effect(() => {
+		if (active && view) onStats?.(computeStats(view.state));
+	});
+
 	function onBodyClick(e: MouseEvent) {
 		if (!view) return;
 		if ((e.target as HTMLElement)?.closest('.cm-editor')) return;
@@ -586,7 +615,7 @@
 	<div class="body" onclick={onBodyClick} onkeydown={() => {}} role="presentation">
 		<div
 			class="doc-host"
-			style="zoom: {zoom}%; max-width: {CONTENT_WIDTHS[settings.contentWidth]};"
+			style="zoom: {zoom}%; max-width: {effectiveContentWidth()};"
 			bind:this={editorHost}
 		></div>
 	</div>

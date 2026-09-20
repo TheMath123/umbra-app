@@ -17,6 +17,7 @@
 		{ keys: shortcuts.prevTab, desc: t('help.prevTabDesc') },
 		{ keys: t('help.tabNumbers'), desc: t('help.tabNumbersDesc') },
 		{ keys: shortcuts.closeTab, desc: t('help.closeTabDesc') },
+		{ keys: shortcuts.saveAs, desc: t('help.saveAsDesc') },
 		{ keys: t('help.dragTab'), desc: t('help.dragTabDesc') },
 		{ keys: t('help.dragTabOut'), desc: t('help.dragTabOutDesc') },
 		{ keys: `${shortcuts.zoomIn} / ${shortcuts.zoomOut}`, desc: t('help.zoomDesc') },

@@ -1,7 +1,7 @@
 <script lang="ts">
 	import type { ComponentProps } from 'svelte';
 	import { invoke } from '@tauri-apps/api/core';
-	import { open, confirm } from '@tauri-apps/plugin-dialog';
+	import { open, save, confirm, message } from '@tauri-apps/plugin-dialog';
 	import { WebviewWindow } from '@tauri-apps/api/webviewWindow';
 	import { getCurrentWindow } from '@tauri-apps/api/window';
 	import FileTree from '$lib/FileTree.svelte';
@@ -25,6 +25,7 @@
 	import { findTheme, applyThemeOverride } from '$lib/themes.svelte';
 	import { navigateWithArrows } from '$lib/keyboardNav';
 	import { consumePrintPayload } from '$lib/exportRunner';
+	import { loadScratchTabs, persistScratchTabs, nextUntitledId } from '$lib/scratchTabs';
 	import { t, i18n } from '$lib/i18n.svelte';
 	import type { DirNode, DocStats, Tab } from '$lib/types';
 
@@ -33,6 +34,10 @@
 	let rootDir = $state<string | null>(null);
 	let tree = $state<DirNode[]>([]);
 	let tabs = $state<Tab[]>([]);
+	let tabIdCounter = 0;
+	function nextTabId(): string {
+		return `t${++tabIdCounter}`;
+	}
 	let activeTabIndex = $state<number | null>(null);
 	let error = $state<string | null>(null);
 	let loading = $state(true);
@@ -49,6 +54,7 @@
 		| { kind: 'rename'; node: DirNode }
 		| null;
 	let contextMenu = $state<{ x: number; y: number; node: DirNode | null } | null>(null);
+	let tabContextMenu = $state<{ x: number; y: number; index: number } | null>(null);
 	let prompt = $state<PromptState>(null);
 	let rootDragOver = $state(false);
 
@@ -75,16 +81,23 @@
 	}
 
 	// A imagem controla seu próprio zoom (encaixe automático) — o app só
-	// dispara comandos e espelha o percentual atual para os controles.
-	let imageViewRef = $state<{ zoomIn: () => void; zoomOut: () => void; zoomReset: () => void } | null>(null);
-	let imageZoomPercent = $state(100);
+	// dispara comandos e espelha o percentual atual para os controles. Cada
+	// aba de imagem mantém sua própria instância (ver view-area abaixo), daí
+	// os dois por caminho — trocar de aba não deve resetar o zoom de nenhuma.
+	type ImageViewHandle = { zoomIn: () => void; zoomOut: () => void; zoomReset: () => void };
+	let imageViewRefs = $state<Record<string, ImageViewHandle | null>>({});
+	let imageZoomPercent = $state<Record<string, number>>({});
 	let docStats = $state<DocStats | null>(null);
 
 	let activeTab = $derived(activeTabIndex !== null ? tabs[activeTabIndex] : null);
 	// PDF usa o zoom do visualizador nativo — não exibimos nem controlamos.
 	let zoomable = $derived(activeTab && activeTab.kind !== 'pdf');
 	let displayZoom = $derived(
-		activeTab?.kind === 'markdown' ? activeTab.zoom : activeTab?.kind === 'image' ? imageZoomPercent : 100
+		activeTab?.kind === 'markdown'
+			? activeTab.zoom
+			: activeTab?.kind === 'image'
+				? (imageZoomPercent[activeTab.id] ?? 100)
+				: 100
 	);
 
 	async function loadTree(dir: string) {
@@ -94,6 +107,46 @@
 			rootDir = dir;
 		} catch (e) {
 			error = String(e);
+		}
+	}
+
+	async function refreshTree() {
+		if (rootDir) await loadTree(rootDir);
+	}
+
+	/** Nova aba "sem título" — não existe em disco ainda; o conteúdo vive só
+	 *  no localStorage (ver scratchTabs.ts) até "Salvar como...". */
+	function newUntitledTab() {
+		tabs = [...tabs, { id: nextTabId(), path: nextUntitledId(), kind: 'markdown', content: '', zoom: 100, untitled: true }];
+		activeTabIndex = tabs.length - 1;
+	}
+
+	function persistScratchSnapshot() {
+		persistScratchTabs(
+			tabs.filter((t) => t.untitled).map((t) => ({ id: t.path, content: t.content }))
+		);
+	}
+
+	/** Abre o diálogo "Salvar como..." pra uma aba sem título, gravando o
+	 *  conteúdo atual num arquivo de verdade e "promovendo" a aba (deixa de
+	 *  ser sem título). Devolve `false` se a pessoa cancelou o diálogo. */
+	async function saveTabAs(index: number): Promise<boolean> {
+		const tab = tabs[index];
+		if (!tab) return false;
+		const target = await save({
+			defaultPath: 'sem-titulo.md',
+			filters: [{ name: 'Markdown', extensions: ['md'] }]
+		});
+		if (!target) return false;
+		try {
+			await invoke('write_markdown_file', { path: target, content: tab.content });
+			tabs[index] = { ...tab, path: target, untitled: false };
+			persistScratchSnapshot();
+			if (rootDir) await loadTree(rootDir);
+			return true;
+		} catch (e) {
+			error = String(e);
+			return false;
 		}
 	}
 
@@ -112,7 +165,7 @@
 			// Imagem/PDF só precisam do caminho (o visualizador resolve a URL);
 			// markdown carrega o texto para o editor/preview.
 			const content = kind === 'markdown' ? await invoke<string>('read_markdown_file', { path }) : '';
-			tabs = [...tabs, { path, kind, content, zoom: 100 }];
+			tabs = [...tabs, { id: nextTabId(), path, kind, content, zoom: 100 }];
 			activeTabIndex = tabs.length - 1;
 			error = null;
 		} catch (e) {
@@ -124,8 +177,23 @@
 		openPath(node.path);
 	}
 
-	function closeTab(index: number) {
+	async function closeTab(index: number) {
+		const tab = tabs[index];
+		if (!tab) return;
+		if (tab.untitled && tab.content.trim() !== '') {
+			const choice = await message(t('tabs.unsavedMessage'), {
+				title: t('tabs.unsavedTitle'),
+				kind: 'warning',
+				buttons: { yes: t('tabs.save'), no: t('tabs.dontSave'), cancel: t('tabs.cancelAction') }
+			});
+			if (choice === 'Cancel') return;
+			if (choice === 'Yes') {
+				const saved = await saveTabAs(index);
+				if (!saved) return;
+			}
+		}
 		const wasActive = activeTabIndex === index;
+		const closedTab = tabs[index];
 		tabs = [...tabs.slice(0, index), ...tabs.slice(index + 1)];
 		if (tabs.length === 0) {
 			activeTabIndex = null;
@@ -134,6 +202,11 @@
 		} else if (activeTabIndex !== null && activeTabIndex > index) {
 			activeTabIndex -= 1;
 		}
+		if (closedTab) {
+			delete imageViewRefs[closedTab.id];
+			delete imageZoomPercent[closedTab.id];
+		}
+		if (closedTab?.untitled) persistScratchSnapshot();
 	}
 
 	function reorderTabs(from: number, to: number) {
@@ -150,10 +223,16 @@
 		}
 	}
 
+	function openTabContextMenu(index: number, e: MouseEvent) {
+		e.preventDefault();
+		e.stopPropagation();
+		tabContextMenu = { x: e.clientX, y: e.clientY, index };
+	}
+
 	/** Arrastou a aba para fora da janela: abre uma janela nova só com ela. */
 	async function tearOffTab(index: number) {
 		const tab = tabs[index];
-		if (!tab || !rootDir) return;
+		if (!tab || !rootDir || tab.untitled) return;
 		closeTab(index);
 
 		const label = `tab-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
@@ -173,6 +252,13 @@
 	async function saveByPath(path: string, newContent: string) {
 		const index = tabs.findIndex((t) => t.path === path);
 		if (index === -1) return;
+		if (tabs[index].untitled) {
+			// Aba sem título: nada de gravar em disco — só atualiza o
+			// localStorage, que é onde ela mora até "Salvar como...".
+			tabs[index].content = newContent;
+			persistScratchSnapshot();
+			return;
+		}
 		try {
 			await invoke('write_markdown_file', { path, content: newContent });
 			tabs[index].content = newContent;
@@ -186,6 +272,27 @@
 		if (typeof dir === 'string') {
 			await loadTree(dir);
 		}
+	}
+
+	/** Escolhe uma pasta e abre numa janela nova — não mexe nas abas desta
+	 *  janela (que podem ter conteúdo sem título ainda não salvo). É o único
+	 *  jeito de abrir uma pasta quando esta janela não tem nenhuma (já que
+	 *  agora sempre existe pelo menos uma aba, a tela "nenhuma pasta aberta"
+	 *  não aparece mais sozinha). */
+	async function openFolderInNewWindow() {
+		const dir = await open({ directory: true, multiple: false });
+		if (typeof dir !== 'string') return;
+		const label = `folder-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
+		const win = new WebviewWindow(label, {
+			url: `/?root=${encodeURIComponent(dir)}`,
+			title: dir.split(/[\\/]/).pop() ?? 'Umbra',
+			width: 1000,
+			height: 700,
+			decorations: false
+		});
+		win.once('tauri://error', (e) => {
+			error = t('app.openWindowFailed', { error: String(e.payload) });
+		});
 	}
 
 	function openContextMenu(node: DirNode | null, e: MouseEvent) {
@@ -224,6 +331,7 @@
 				onClick: () => deleteItem(node)
 			});
 		}
+		items.push({ label: t('menu.refresh'), icon: 'refresh', onClick: refreshTree });
 		return items;
 	}
 
@@ -329,15 +437,15 @@
 
 	function zoomIn() {
 		if (activeTab?.kind === 'markdown') setMarkdownZoom(activeTab.zoom + 10);
-		else if (activeTab?.kind === 'image') imageViewRef?.zoomIn();
+		else if (activeTab?.kind === 'image') imageViewRefs[activeTab.id]?.zoomIn();
 	}
 	function zoomOut() {
 		if (activeTab?.kind === 'markdown') setMarkdownZoom(activeTab.zoom - 10);
-		else if (activeTab?.kind === 'image') imageViewRef?.zoomOut();
+		else if (activeTab?.kind === 'image') imageViewRefs[activeTab.id]?.zoomOut();
 	}
 	function zoomReset() {
 		if (activeTab?.kind === 'markdown') setMarkdownZoom(100);
-		else if (activeTab?.kind === 'image') imageViewRef?.zoomReset();
+		else if (activeTab?.kind === 'image') imageViewRefs[activeTab.id]?.zoomReset();
 	}
 
 	function handleKeydown(e: KeyboardEvent) {
@@ -393,6 +501,9 @@
 		} else if (matchesShortcut(e, 'closeTab')) {
 			e.preventDefault();
 			if (activeTabIndex !== null) closeTab(activeTabIndex);
+		} else if (matchesShortcut(e, 'saveAs')) {
+			e.preventDefault();
+			if (activeTabIndex !== null && activeTab?.untitled) saveTabAs(activeTabIndex);
 		} else if ((e.ctrlKey || e.metaKey) && /^[1-9]$/.test(e.key)) {
 			// Ir para a aba N não é customizável — é sempre Ctrl+1..9.
 			e.preventDefault();
@@ -442,12 +553,25 @@
 		}
 	});
 
+	// Opacidade do fundo da janela (Configurações → Janela). A janela em si
+	// só fica visualmente transparente onde não há nada opaco por cima —
+	// aplica no fundo geral e na barra lateral; menus/modais continuam
+	// opacos de propósito, pra ficarem sempre legíveis.
+	$effect(() => {
+		document.documentElement.style.setProperty('--window-opacity', `${settings.windowOpacity}%`);
+	});
+
 	$effect(() => {
 		if (isPrintMode) return;
 		(async () => {
 			const params = new URLSearchParams(window.location.search);
 			const queryRoot = params.get('root');
 			const queryFile = params.get('file');
+			// Uma aba destacada em janela própria (tearOffTab) sempre chega com
+			// ?root=&file= apontando pro arquivo dela — só a janela principal
+			// (sem esses parâmetros) restaura abas sem título / ganha uma em
+			// branco por padrão.
+			const isMainWindow = !queryRoot && !queryFile;
 
 			const initial = queryRoot ?? (await invoke<string | null>('get_initial_dir'));
 			if (initial) {
@@ -456,6 +580,20 @@
 			const initialFile = queryFile ?? (await invoke<string | null>('get_initial_file'));
 			if (initialFile) {
 				await openPath(initialFile);
+			}
+
+			if (isMainWindow) {
+				for (const scratch of loadScratchTabs()) {
+					tabs = [
+						...tabs,
+						{ id: nextTabId(), path: scratch.id, kind: 'markdown', content: scratch.content, zoom: 100, untitled: true }
+					];
+				}
+				if (tabs.length === 0) {
+					newUntitledTab();
+				} else if (activeTabIndex === null) {
+					activeTabIndex = 0;
+				}
 			}
 			loading = false;
 		})();
@@ -505,6 +643,9 @@
 					>
 						<Icon name={settings.sidebarMode === 'fixed' ? 'push-pin-filled' : 'push-pin-outlined'} size={15} />
 					</button>
+					<button class="icon-btn" onclick={refreshTree} title={t('app.refreshTree')}>
+						<Icon name="refresh" size={15} />
+					</button>
 					<button class="icon-btn" onclick={(e) => openContextMenu(null, e)} title={t('app.newFolderOrFile')}>
 						<Icon name="add" size={16} />
 					</button>
@@ -513,6 +654,11 @@
 		{/if}
 
 		<div class="titlebar-tabs" data-tauri-drag-region>
+			{#if !rootDir}
+				<button class="icon-btn open-folder-btn" onclick={openFolderInNewWindow} title={t('app.openFolderNewWindow')}>
+					<Icon name="folder" size={15} />
+				</button>
+			{/if}
 			{#if tabs.length > 0}
 				<TabBar
 					{tabs}
@@ -521,8 +667,12 @@
 					onClose={closeTab}
 					onReorder={reorderTabs}
 					onTearOff={tearOffTab}
+					onContextMenu={openTabContextMenu}
 				/>
 			{/if}
+			<button class="icon-btn new-tab-btn" onclick={newUntitledTab} title={t('tabs.newUntitled')}>
+				<Icon name="add" size={16} />
+			</button>
 		</div>
 
 		<button
@@ -538,24 +688,28 @@
 	<div class="app-body">
 	{#if loading}
 		<div class="empty">{t('app.loading')}</div>
-	{:else if !rootDir}
+	{:else if !rootDir && tabs.length === 0}
 		<div class="empty">
 			<p>{t('app.noFolderOpen')}</p>
-			<button onclick={pickFolder}>{t('app.openFolder')}</button>
+			<div class="empty-actions">
+				<button onclick={pickFolder}>{t('app.openFolder')}</button>
+				<button class="secondary" onclick={newUntitledTab}>{t('tabs.newUntitled')}</button>
+			</div>
 		</div>
 	{:else}
-		{#if settings.sidebarMode === 'auto' && !sidebarVisible}
-			<div class="sidebar-trigger" role="presentation" onmouseenter={onSidebarMouseEnter}></div>
-		{/if}
+		{#if rootDir}
+			{#if settings.sidebarMode === 'auto' && !sidebarVisible}
+				<div class="sidebar-trigger" role="presentation" onmouseenter={onSidebarMouseEnter}></div>
+			{/if}
 
-		<aside
-			class="sidebar"
-			class:auto={settings.sidebarMode === 'auto'}
-			class:collapsed={settings.sidebarMode === 'auto' && !sidebarVisible}
-			onmouseenter={onSidebarMouseEnter}
-			onmouseleave={onSidebarMouseLeave}
-			oncontextmenu={(e) => openContextMenu(null, e)}
-		>
+			<aside
+				class="sidebar"
+				class:auto={settings.sidebarMode === 'auto'}
+				class:collapsed={settings.sidebarMode === 'auto' && !sidebarVisible}
+				onmouseenter={onSidebarMouseEnter}
+				onmouseleave={onSidebarMouseLeave}
+				oncontextmenu={(e) => openContextMenu(null, e)}
+			>
 			<div
 				class="tree-scroll"
 				class:drag-over={rootDragOver}
@@ -579,6 +733,7 @@
 				{/if}
 			</div>
 		</aside>
+		{/if}
 
 		<section class="content">
 			{#if error}
@@ -586,31 +741,38 @@
 			{/if}
 
 			<div class="view-area">
-				{#if activeTab}
-					{@const tab = activeTab}
-					{#key tab.path}
+				<!-- Toda aba aberta fica montada (só escondida via `hidden`), nunca
+				     recriada ao trocar de aba — preserva scroll, cursor/seleção,
+				     histórico de undo e o zoom nativo do visualizador de PDF, que
+				     não tem como ser lido/restaurado de fora. -->
+				{#each tabs as tab (tab.id)}
+					{@const isActive = tab.id === activeTab?.id}
+					<div class="view-slot" hidden={!isActive}>
 						{#if tab.kind === 'markdown'}
 							<MarkdownView
 								path={tab.path}
 								content={tab.content}
 								zoom={tab.zoom}
+								active={isActive}
 								onSave={(c) => saveByPath(tab.path, c)}
 								onNavigate={openPath}
-								onStats={(s) => (docStats = s)}
+								onStats={(s) => {
+									if (isActive) docStats = s;
+								}}
 							/>
 						{:else if tab.kind === 'image'}
 							<ImageView
-								bind:this={imageViewRef}
+								bind:this={imageViewRefs[tab.id]}
 								path={tab.path}
-								onZoomChange={(p) => (imageZoomPercent = p)}
+								onZoomChange={(p) => (imageZoomPercent[tab.id] = p)}
 							/>
 						{:else if tab.kind === 'pdf'}
 							<PdfView path={tab.path} />
 						{/if}
-					{/key}
+					</div>
 				{:else}
 					<div class="empty">{t('app.selectFile')}</div>
-				{/if}
+				{/each}
 			</div>
 
 			{#if activeTab && zoomable}
@@ -661,6 +823,8 @@
 		x={overflowMenu.x}
 		y={overflowMenu.y}
 		items={[
+			{ label: t('tabs.newUntitled'), icon: 'description', onClick: newUntitledTab },
+			{ label: t('app.openFolderNewWindow'), icon: 'folder', onClick: openFolderInNewWindow },
 			{ label: t('menu.export'), icon: 'download', onClick: () => (showExport = true) },
 			{ label: t('menu.theme'), icon: 'palette', onClick: () => (showThemes = true) },
 			{ label: t('menu.settings'), icon: 'settings', onClick: () => (showSettings = true) },
@@ -677,6 +841,21 @@
 		y={contextMenu.y}
 		items={contextMenuItems(contextMenu.node)}
 		onClose={() => (contextMenu = null)}
+	/>
+{/if}
+
+{#if tabContextMenu}
+	{@const tcm = tabContextMenu}
+	<ContextMenu
+		x={tcm.x}
+		y={tcm.y}
+		items={[
+			...(tabs[tcm.index]?.untitled
+				? [{ label: t('tabs.saveAs'), icon: 'download' as const, onClick: () => saveTabAs(tcm.index) }]
+				: []),
+			{ label: t('tabs.close', { shortcut: 'Ctrl+W' }), icon: 'close' as const, onClick: () => closeTab(tcm.index) }
+		]}
+		onClose={() => (tabContextMenu = null)}
 	/>
 {/if}
 
@@ -723,6 +902,10 @@
 		--accent: #4f46e5;
 		--accent-text: #ffffff;
 		--danger: #dc2626;
+		/* Opacidade do fundo da janela (Configurações → Janela) — 100% por
+		 * padrão, sem efeito nenhum; sincronizado via JS a partir daqui pra
+		 * não haver flash de conteúdo opaco antes do primeiro efeito rodar. */
+		--window-opacity: 100%;
 	}
 
 	@media (prefers-color-scheme: dark) {
@@ -794,7 +977,7 @@
 		margin: 0;
 		height: 100%;
 		overflow: hidden;
-		background: var(--bg);
+		background: color-mix(in srgb, var(--bg) var(--window-opacity), transparent);
 		color: var(--text);
 		font-family:
 			-apple-system, 'Segoe UI', Inter, Roboto, sans-serif;
@@ -886,6 +1069,16 @@
 		cursor: pointer;
 	}
 
+	.empty-actions {
+		display: flex;
+		gap: 8px;
+	}
+
+	.empty button.secondary {
+		background: var(--surface);
+		color: var(--text);
+	}
+
 	.sidebar {
 		box-sizing: border-box;
 		width: 260px;
@@ -893,7 +1086,7 @@
 		border-right: 1px solid var(--border);
 		display: flex;
 		flex-direction: column;
-		background: var(--bg);
+		background: color-mix(in srgb, var(--bg) var(--window-opacity), transparent);
 	}
 
 	.tree-scroll {
@@ -973,6 +1166,13 @@
 		background: var(--hover);
 	}
 
+	.new-tab-btn,
+	.open-folder-btn {
+		flex-shrink: 0;
+		align-self: center;
+		margin: 0 6px;
+	}
+
 	.empty-tree {
 		padding: 12px;
 		font-size: 13px;
@@ -992,6 +1192,24 @@
 		min-height: 0;
 		display: flex;
 		flex-direction: column;
+	}
+
+	.view-slot {
+		position: absolute;
+		inset: 0;
+		display: flex;
+		flex-direction: column;
+	}
+
+	/* Precisa ser explícito: uma regra de autor com `display` sempre vence a
+	 * regra padrão do navegador pro atributo `hidden` (são de "camadas" de
+	 * cascata diferentes, não é sobre especificidade) — sem isso, TODAS as
+	 * abas ficavam visíveis ao mesmo tempo, empilhadas por cima uma da
+	 * outra (o "texto sobreposto" e "troca de aba não muda nada" vinham
+	 * daqui: nenhuma aba de fato escondia, todas ficavam desenhando por
+	 * cima, inclusive os PDFs — daí a lentidão/travamentos). */
+	.view-slot[hidden] {
+		display: none;
 	}
 
 	.error {

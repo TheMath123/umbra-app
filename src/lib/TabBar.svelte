@@ -10,7 +10,8 @@
 		onActivate,
 		onClose,
 		onReorder,
-		onTearOff
+		onTearOff,
+		onContextMenu
 	}: {
 		tabs: Tab[];
 		activeIndex: number | null;
@@ -18,7 +19,16 @@
 		onClose: (index: number) => void;
 		onReorder: (from: number, to: number) => void;
 		onTearOff: (index: number) => void;
+		onContextMenu?: (index: number, e: MouseEvent) => void;
 	} = $props();
+
+	/** "Sem título", "Sem título 2", ... — numerado só entre as abas ainda
+	 *  não salvas, na ordem em que aparecem. */
+	function tabLabel(tab: Tab, index: number): string {
+		if (!tab.untitled) return tab.path.split(/[\\/]/).pop() ?? tab.path;
+		const n = tabs.slice(0, index + 1).filter((t) => t.untitled).length;
+		return n > 1 ? t('tabs.untitledN', { n: String(n) }) : t('tabs.untitledOne');
+	}
 
 	let draggingIndex = $state<number | null>(null);
 	let dragOverIndex = $state<number | null>(null);
@@ -105,27 +115,29 @@
 	onwheel={onWheel}
 	onkeydown={onTabbarKeydown}
 >
-	{#each tabs as tab, i (tab.path)}
+	{#each tabs as tab, i (tab.id)}
 		<div
 			class="tab"
 			class:active={i === activeIndex}
+			class:untitled={tab.untitled}
 			class:drag-over={dragOverIndex === i && draggingIndex !== i}
 			class:dragging={draggingIndex === i}
 			role="tab"
 			tabindex="0"
 			aria-selected={i === activeIndex}
 			draggable="true"
-			title={tab.path}
+			title={tab.untitled ? tabLabel(tab, i) : tab.path}
 			ondragstart={(e) => onDragStart(e, i)}
 			ondragover={(e) => onDragOverTab(e, i)}
 			ondrop={(e) => onDropTab(e, i)}
 			ondragend={onDragEnd}
 			onclick={() => onActivate(i)}
+			oncontextmenu={(e) => onContextMenu?.(i, e)}
 			onkeydown={(e) => {
 				if (e.key === 'Enter' || e.key === ' ') onActivate(i);
 			}}
 		>
-			<span class="tab-name">{tab.path.split(/[\\/]/).pop()}</span>
+			<span class="tab-name">{tabLabel(tab, i)}</span>
 			<button
 				class="tab-close"
 				title={t('tabs.close', { shortcut: 'Ctrl+W' })}
@@ -181,6 +193,10 @@
 	.tab.active {
 		color: var(--text);
 		background: var(--bg);
+	}
+
+	.tab.untitled .tab-name {
+		font-style: italic;
 	}
 
 	.tab.active::after {

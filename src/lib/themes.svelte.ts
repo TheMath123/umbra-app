@@ -27,12 +27,27 @@ export interface ThemeColors {
 	danger: string;
 }
 
+/** Campos opcionais — um tema só precisa das 9 cores; qualquer um destes
+ *  que for definido passa a valer sempre que esse tema estiver ativo,
+ *  sobrepondo a escolha equivalente em Configurações (ver settings.svelte.ts
+ *  `effectiveFontFamily`/`effectiveContentWidth`/etc.). Documentado em
+ *  THEMES.md. */
+export interface ThemeTypography {
+	/** Uma font-family CSS qualquer, ex.: "'Fira Code', monospace". */
+	fontFamily?: string;
+	/** Largura do conteúdo, ex.: "700px" ou "100%". */
+	contentWidth?: string;
+	fontSize?: number;
+	lineHeight?: number;
+}
+
 export interface ThemeDef {
 	/** Identificador estável — usado para persistir a escolha do usuário. */
 	id: string;
 	/** Nome exibido no seletor. */
 	name: string;
 	colors: ThemeColors;
+	typography?: ThemeTypography;
 }
 
 export const THEME_COLOR_KEYS = [
@@ -287,14 +302,40 @@ export function parseThemeJson(raw: string): ThemeDef {
 		typeof obj.id === 'string' && obj.id.trim() !== ''
 			? obj.id
 			: `custom-${obj.name.toLowerCase().replace(/[^a-z0-9]+/g, '-')}-${Date.now().toString(36)}`;
-	return { id, name: obj.name, colors };
+	const typography = parseThemeTypography(obj.typography);
+	return { id, name: obj.name, colors, ...(typography ? { typography } : {}) };
+}
+
+/** Todos os campos são opcionais — só valida o *tipo* de quem estiver
+ *  presente, pra um valor malformado não quebrar o app silenciosamente. */
+function parseThemeTypography(value: unknown): ThemeTypography | undefined {
+	if (typeof value !== 'object' || value === null) return undefined;
+	const obj = value as Record<string, unknown>;
+	const typography: ThemeTypography = {};
+	if (typeof obj.fontFamily === 'string' && obj.fontFamily.trim() !== '') {
+		typography.fontFamily = obj.fontFamily;
+	}
+	if (typeof obj.contentWidth === 'string' && obj.contentWidth.trim() !== '') {
+		typography.contentWidth = obj.contentWidth;
+	}
+	if (typeof obj.fontSize === 'number' && obj.fontSize > 0) {
+		typography.fontSize = obj.fontSize;
+	}
+	if (typeof obj.lineHeight === 'number' && obj.lineHeight > 0) {
+		typography.lineHeight = obj.lineHeight;
+	}
+	return Object.keys(typography).length > 0 ? typography : undefined;
 }
 
 export function themeToJson(theme: ThemeDef): string {
 	// Sem o `id` de propósito: um tema exportado para compartilhar deve
 	// ganhar um id novo (do nome) quando outra pessoa importar, em vez de
 	// arriscar colidir com o id de quem o criou.
-	return JSON.stringify({ name: theme.name, colors: theme.colors }, null, 2);
+	return JSON.stringify(
+		{ name: theme.name, colors: theme.colors, ...(theme.typography ? { typography: theme.typography } : {}) },
+		null,
+		2
+	);
 }
 
 export function addCustomTheme(theme: ThemeDef) {

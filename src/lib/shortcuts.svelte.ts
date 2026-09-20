@@ -6,7 +6,8 @@ export type CommandId =
 	| 'zoomReset'
 	| 'nextTab'
 	| 'prevTab'
-	| 'closeTab';
+	| 'closeTab'
+	| 'saveAs';
 
 export interface ShortcutDef {
 	id: CommandId;
@@ -22,6 +23,7 @@ export const SHORTCUT_DEFS: ShortcutDef[] = [
 	{ id: 'nextTab', labelKey: 'shortcuts.cmd.nextTab', default: 'Ctrl+Tab' },
 	{ id: 'prevTab', labelKey: 'shortcuts.cmd.prevTab', default: 'Ctrl+Shift+Tab' },
 	{ id: 'closeTab', labelKey: 'shortcuts.cmd.closeTab', default: 'Ctrl+W' },
+	{ id: 'saveAs', labelKey: 'shortcuts.cmd.saveAs', default: 'Ctrl+S' },
 	{ id: 'zoomIn', labelKey: 'shortcuts.cmd.zoomIn', default: 'Ctrl+=' },
 	{ id: 'zoomOut', labelKey: 'shortcuts.cmd.zoomOut', default: 'Ctrl+-' },
 	{ id: 'zoomReset', labelKey: 'shortcuts.cmd.zoomReset', default: 'Ctrl+0' }

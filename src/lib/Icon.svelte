@@ -27,6 +27,7 @@
 	import language from '@material-design-icons/svg/outlined/language.svg?raw';
 	import cropSquare from '@material-design-icons/svg/outlined/crop_square.svg?raw';
 	import filterNone from '@material-design-icons/svg/outlined/filter_none.svg?raw';
+	import refresh from '@material-design-icons/svg/outlined/refresh.svg?raw';
 
 	const icons = {
 		folder,
@@ -56,7 +57,8 @@
 		'desktop-windows': desktopWindows,
 		language,
 		'crop-square': cropSquare,
-		'filter-none': filterNone
+		'filter-none': filterNone,
+		refresh
 	} as const;
 
 	export type IconName = keyof typeof icons;
