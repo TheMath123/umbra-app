@@ -450,6 +450,9 @@
 
 	function handleKeydown(e: KeyboardEvent) {
 		if (e.isComposing || e.keyCode === 229) return;
+		// Já tratado (ex.: Ctrl+B/I/K pelo editor): evita disparo duplo se o
+		// usuário remapear um atalho do app pra uma combinação do editor.
+		if (e.defaultPrevented) return;
 
 		// O modal de atalhos está esperando uma combinação nova — não executa
 		// a ação antiga enquanto isso.

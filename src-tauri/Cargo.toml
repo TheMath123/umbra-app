@@ -1,6 +1,6 @@
 [package]
 name = "umbra"
-version = "0.2.2"
+version = "0.3.0"
 description = "Umbra — leitor e editor de Markdown leve e rápido"
 authors = ["you"]
 edition = "2021"

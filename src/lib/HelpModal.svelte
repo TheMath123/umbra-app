@@ -13,6 +13,11 @@
 		{ keys: t('help.clickText'), desc: t('help.clickTextDesc') },
 		{ keys: t('help.clickLink'), desc: t('help.clickLinkDesc') },
 		{ keys: t('help.esc'), desc: t('help.escDesc') },
+		// Atalhos do editor: fixos, fora do SHORTCUT_DEFS (o handler global os dispararia fora do editor)
+		{ keys: t('help.bold'), desc: t('help.boldDesc') },
+		{ keys: t('help.italic'), desc: t('help.italicDesc') },
+		{ keys: t('help.link'), desc: t('help.linkDesc') },
+		{ keys: t('help.home'), desc: t('help.homeDesc') },
 		{ keys: shortcuts.nextTab, desc: t('help.nextTabDesc') },
 		{ keys: shortcuts.prevTab, desc: t('help.prevTabDesc') },
 		{ keys: t('help.tabNumbers'), desc: t('help.tabNumbersDesc') },

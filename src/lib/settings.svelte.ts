@@ -22,6 +22,11 @@ export interface AppSettings {
 	/** Opacidade do fundo da janela (0-100). 100 = opaco (padrão, sem efeito
 	 *  algum); valores menores deixam a janela translúcida. */
 	windowOpacity: number;
+	/** Quebra automática de linha no editor (padrão: ligada). Desligar evita
+	 *  um problema conhecido do CodeMirror — em documentos grandes, clique
+	 *  e Home/End podem errar a linha em parágrafos que quebram — ao custo
+	 *  de rolagem horizontal para linhas longas em vez de quebrá-las. */
+	lineWrapping: boolean;
 }
 
 export const FONT_STACKS: Record<Exclude<FontChoice, 'custom'>, string> = {
@@ -52,7 +57,8 @@ export const DEFAULT_SETTINGS: AppSettings = {
 	customContentWidthPx: 780,
 	lineHeight: 'normal',
 	sidebarMode: 'fixed',
-	windowOpacity: 100
+	windowOpacity: 100,
+	lineWrapping: true
 };
 
 /** Fonte e largura de conteúdo efetivas — o tema ativo pode definir as

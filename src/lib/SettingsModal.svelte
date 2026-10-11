@@ -231,6 +231,23 @@
 			</section>
 
 			<section>
+				<h3>{t('settings.editor')}</h3>
+				<div class="row stacked">
+					<span class="row-label">
+						{t('settings.lineWrapping')}
+						<span class="row-desc">{t('settings.lineWrappingDesc')}</span>
+					</span>
+					<button
+						class="toggle"
+						class:active={settings.lineWrapping}
+						onclick={() => set('lineWrapping', !settings.lineWrapping)}
+					>
+						{t(settings.lineWrapping ? 'settings.activated' : 'settings.activate')}
+					</button>
+				</div>
+			</section>
+
+			<section>
 				<h3>{t('settings.sidebar')}</h3>
 				<div class="row">
 					<span class="row-label">{t('settings.sidebarBehavior')}</span>
